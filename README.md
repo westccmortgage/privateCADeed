@@ -1,9 +1,10 @@
-# CADeed.com — California Private Capital Engine
+# CADeed.com — California Deal Intake Terminal (V3)
 
-A private capital intelligence engine for California real estate. Describe a
-deal in plain English; the engine extracts the facts, runs deterministic
-underwriting math, and maps the likely private capital path — what's possible,
-what's missing, and the next best question.
+A conversational private-capital engine for California real estate. Describe a
+deal in plain English; the engine understands hard-money language, runs
+deterministic underwriting math, asks intelligent follow-up questions, collects
+consent, and routes the structured scenario into **GRCRM** for licensed review
+and capital-source matching.
 
 > This is not a loan approval or commitment to lend. All scenarios require
 > review by a licensed mortgage professional and/or private capital source.
@@ -11,79 +12,106 @@ what's missing, and the next best question.
 ## Stack
 
 - **Next.js (App Router)** + **TypeScript**
-- **Tailwind CSS** for an Apple-style minimal UI
-- **Framer Motion** for motion
-- **Lucide React** for icons
-- **OpenAI Responses API** for structured extraction (via a server route)
+- **Tailwind CSS** (Apple-style minimal UI), **Framer Motion**, **Lucide React**
+- **Anthropic Claude** (`@anthropic-ai/sdk`) for extraction / language understanding (server-side)
 
-## How it works
+## Core principle: AI extracts, TypeScript calculates
 
-1. **Extraction (AI):** `/api/analyze-deal` sends the user's text to the OpenAI
-   Responses API with a strict JSON schema. The model **only extracts facts** —
-   it never computes numbers. If `OPENAI_API_KEY` is missing (or the call
-   fails), a deterministic regex fallback in `lib/mock-extractor.ts` is used so
-   the app always works.
-2. **Calculation (deterministic):** `lib/deal-calculator.ts` computes LTV, CLTV,
-   LTC, ARV-LTV, equity, the capital path, scenario strength, risk notes,
-   missing information, the next best question, and restructure options. The AI
-   never invents the math.
-3. **Result:** A premium dashboard panel renders the scenario, with actions to
-   save the scenario or send it for review.
+The AI **only extracts facts and understands language**. Every number is computed
+by deterministic TypeScript so results are reproducible and auditable.
 
-### Capital path logic
+- `lib/claude-extract.ts` — Anthropic Claude with forced tool-use for strict
+  structured JSON + a hard-money glossary (1st/2nd, "firs loan", "3mil", etc.).
+- `lib/mock-extractor.ts` — deterministic fallback so the app works **without**
+  `ANTHROPIC_API_KEY`, including short multi-turn answers.
+- `lib/deal-calculator.ts` — LTV, **CLTV (primary for 2nd position)**, LTC,
+  ARV-LTV, equity, capital path, strength, risk notes, missing info, next-best
+  question, quick replies, restructure options, lender-match criteria.
+- `lib/scenario-merger.ts` — merges each turn's patch into the running scenario
+  **without erasing** known values.
+- `lib/private-capital-guidelines.ts` — internal leverage bands / construction
+  requirements that shape the language (never lender commitments).
+- `lib/compliance-rules.ts` — forbidden-language scrubbing, consent text,
+  owner-occupied caution, compliance flags.
+- `lib/grcrm-client.ts` — builds and sends GRCRM payloads (HMAC-signed when a
+  secret is set; degrades gracefully when not configured).
+- `lib/scenario-engine.ts` — ties it together for single-shot and multi-turn.
 
-- Cash-out + current debt within ~70% CLTV → **2nd Deed of Trust** or
-  **New 1st Refinance**.
-- Purchase + rehab → **Fix & Flip / Bridge** (sized against LTC and ARV).
-- Construction completion → **Construction Completion Capital**.
-- High leverage is never "declined" — it returns **restructure options**
-  (lower the loan, add collateral, new 1st instead of 2nd, staged funding,
-  stronger exit).
+### Second-position CLTV
 
-## CRM integration
+For a 2nd-position loan, **CLTV is the primary metric**:
 
-`/api/save-scenario` prepares a payload for GRCRM.com. If `GRCRM_WEBHOOK_URL`
-is set, the scenario is POSTed to that webhook; otherwise the payload is logged.
+```
+CLTV = (existing first loan + requested new loan) / property value
+```
+
+e.g. `500k` 2nd behind a `3M` first on a `6M` property → **58.3%** (not the
+8.3% new-money LTV).
+
+## Multi-turn flow
+
+1. User describes the deal → 2. engine extracts facts → 3. deterministic math →
+4. engine explains what it understood → 5. asks the next best question →
+6. user answers naturally (typed, dictated, or quick-reply chip) →
+7. scenario updates **without restarting** → 8. repeat until minimum info →
+9. **Ready for Broker Review** → consent + contact → sent to GRCRM.
+
+Minimum info before submission: property state/location, value, requested loan,
+current debt (if 2nd), lien position, purpose, occupancy, business purpose, exit
+strategy, timeline, user role, contact, and **explicit consent**.
+
+## Compliance
+
+The engine never says *approved, declined, guaranteed, funded, rate locked, you
+qualify*. It uses *preliminary scenario, possible capital path, subject to
+review, may require restructuring, not a commitment to lend*. Consent is required
+before anything is sent to GRCRM. Owner-occupied scenarios surface a caution.
+
+## API routes
+
+| Route                   | Purpose                                                |
+| ----------------------- | ------------------------------------------------------ |
+| `POST /api/chat-deal`   | Multi-turn: extract patch → merge → recalc → respond.  |
+| `POST /api/analyze-deal`| Single-shot extraction + calculation.                  |
+| `POST /api/save-scenario`| Requires consent; builds + sends the GRCRM payload.   |
+| `POST /api/capital-source`| Capital-source lending box → GRCRM `capitalSourceProfile`. |
+
+## For Capital Sources
+
+`/for-capital-sources` collects a lending box (states, lien positions, LTV/CLTV,
+loan range, property types, programs, owner-occupied/business-purpose, response
+time) and sends it to GRCRM as `capitalSourceProfile`.
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local   # add your keys (optional — runs without them)
-npm run dev
+cp .env.example .env.local   # optional — the app runs without keys
+npm run dev                  # http://localhost:3000
+npm run build                # production build
+npm test                     # deterministic scenario tests (8 cases)
 ```
-
-Open http://localhost:3000. The app works without an OpenAI key using the
-deterministic fallback extractor.
 
 ### Environment variables
 
-| Variable             | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| `OPENAI_API_KEY`     | OpenAI key. If absent, the fallback extractor is used. |
-| `OPENAI_MODEL`       | Model id (default `gpt-4.1-mini`).                     |
-| `GRCRM_WEBHOOK_URL`  | If set, saved scenarios are POSTed here.               |
+| Variable               | Description                                                  |
+| ---------------------- | ------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY`    | Claude key. If absent, the deterministic fallback is used.   |
+| `ANTHROPIC_MODEL`      | Model id (default `claude-haiku-4-5`).                       |
+| `GRCRM_WEBHOOK_URL`    | If set, scenarios/profiles are POSTed here. Optional.        |
+| `GRCRM_WEBHOOK_SECRET` | If set, payloads are HMAC-SHA256 signed. Optional.           |
+
+No secrets are committed — only `.env.example`. Set real values in Netlify.
 
 ## Deploy (Netlify)
 
-`netlify.toml` is configured for the Next.js runtime. Set the environment
-variables in the Netlify dashboard and deploy.
+`netlify.toml` uses `@netlify/plugin-nextjs`. Pushing to the configured branch
+triggers an automatic build. Set the environment variables in the Netlify
+dashboard.
 
-## Project structure
+## Tests
 
-```
-app/
-  api/analyze-deal/route.ts   # AI extraction + deterministic calc
-  api/save-scenario/route.ts  # GRCRM payload + webhook forward
-  page.tsx                    # homepage (command box + result)
-  layout.tsx, globals.css
-components/
-  Header.tsx  DealCommandBox.tsx  ScenarioResult.tsx
-  ComplianceNotice.tsx  Footer.tsx
-lib/
-  deal-calculator.ts   # deterministic math (never the AI)
-  scenario-engine.ts   # ties extraction + calculation together
-  openai-extract.ts    # OpenAI Responses API client
-  mock-extractor.ts    # no-key fallback extractor
-  examples.ts  types.ts
-```
+`npm test` runs `scripts/test-scenarios.mts` (via `tsx`) covering: 2nd-position
+CLTV (58.3%), cash-out CLTV (68.3%), fix & flip, construction completion,
+owner-occupied caution, business-purpose follow-up, consent gating, and graceful
+behavior when GRCRM is not configured.

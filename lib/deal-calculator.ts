@@ -1,81 +1,156 @@
+// Deterministic deal math. The AI never invents numbers — it only extracts
+// facts. Everything quantitative lives here so results are reproducible and
+// auditable.
+
+import {
+  CONSTRUCTION_REQUIREMENTS,
+  LEVERAGE_GUIDELINES,
+  gradeLeverage,
+} from "./private-capital-guidelines";
 import type {
   CalculatedScenario,
   ExtractedScenario,
+  LenderMatchCriteria,
+  PrimaryMetric,
   ScenarioStrength,
 } from "./types";
 
-/** Round a ratio to a whole-number percentage. */
+/** Round a ratio (0–1) to a one-decimal percentage. */
 function toPercent(value: number): number {
   return Math.round(value * 1000) / 10;
 }
 
-/**
- * Loan-to-Value of the requested new money against property value.
- */
+function pos(n: number | null | undefined): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n > 0;
+}
+
+/** The new money this request introduces (loan amount or cash-out). */
+export function newMoneyAmount(extracted: ExtractedScenario): number {
+  return Math.max(
+    extracted.requestedCashOut ?? 0,
+    extracted.requestedLoanAmount ?? 0,
+  );
+}
+
+/** Loan-to-Value of the requested new money against property value. */
 export function calculateLTV(
   requestedLoanAmount: number | null,
-  estimatedValue: number | null
+  estimatedValue: number | null,
 ): number | null {
-  if (!requestedLoanAmount || !estimatedValue || estimatedValue <= 0) {
-    return null;
-  }
+  if (!pos(requestedLoanAmount) || !pos(estimatedValue)) return null;
   return toPercent(requestedLoanAmount / estimatedValue);
 }
 
 /**
- * Combined Loan-to-Value. Existing debt plus the new money being requested.
- * Cash-out and a stated new loan amount are not double counted: the larger of
- * the two requested figures is treated as the new money.
+ * Combined Loan-to-Value. Existing senior debt PLUS the new money requested,
+ * over the property value. This is the primary metric for 2nd-position loans:
+ *   CLTV = (currentDebt + requestedNewMoney) / estimatedValue
  */
 export function calculateCLTV(
   currentDebt: number | null,
   requestedCashOut: number | null,
   requestedLoanAmount: number | null,
-  estimatedValue: number | null
+  estimatedValue: number | null,
 ): number | null {
-  if (!estimatedValue || estimatedValue <= 0) {
-    return null;
-  }
+  if (!pos(estimatedValue)) return null;
   const newMoney = Math.max(requestedCashOut ?? 0, requestedLoanAmount ?? 0);
   const existing = currentDebt ?? 0;
-  if (newMoney <= 0 && existing <= 0) {
-    return null;
-  }
+  if (newMoney <= 0 && existing <= 0) return null;
   return toPercent((existing + newMoney) / estimatedValue);
 }
 
-/**
- * Loan-to-Cost for purchase + rehab scenarios.
- */
+/** Loan-to-Cost for purchase + rehab scenarios. */
 export function calculateLTC(
   requestedLoanAmount: number | null,
   purchasePrice: number | null,
-  rehabBudget: number | null
+  rehabBudget: number | null,
 ): number | null {
   const totalCost = (purchasePrice ?? 0) + (rehabBudget ?? 0);
-  if (!requestedLoanAmount || totalCost <= 0) {
-    return null;
-  }
+  if (!pos(requestedLoanAmount) || totalCost <= 0) return null;
   return toPercent(requestedLoanAmount / totalCost);
 }
 
-/**
- * Loan amount as a percentage of After-Repair Value.
- */
+/** Loan amount as a percentage of After-Repair / as-complete value. */
 export function calculateARVLTV(
   requestedLoanAmount: number | null,
-  arv: number | null
+  arv: number | null,
 ): number | null {
-  if (!requestedLoanAmount || !arv || arv <= 0) {
-    return null;
-  }
+  if (!pos(requestedLoanAmount) || !pos(arv)) return null;
   return toPercent(requestedLoanAmount / arv);
 }
 
-const CASH_OUT_CLTV_CEILING = 70;
-const HIGH_LEVERAGE_CLTV = 75;
-const HIGH_LEVERAGE_LTC = 85;
-const HIGH_ARV_LTV = 70;
+// --- shape detection ---------------------------------------------------------
+
+function purposeBlob(extracted: ExtractedScenario): string {
+  return `${extracted.loanPurpose ?? ""} ${extracted.exitStrategy ?? ""} ${
+    extracted.projectStatus ?? ""
+  } ${extracted.lienPosition ?? ""}`.toLowerCase();
+}
+
+export function isConstructionDeal(extracted: ExtractedScenario): boolean {
+  return (
+    pos(extracted.constructionBudget) ||
+    /construction|mid-?construction|finish|complete|completion|build-?out|stalled/.test(
+      purposeBlob(extracted),
+    )
+  );
+}
+
+export function isPurchaseRehabDeal(extracted: ExtractedScenario): boolean {
+  return (
+    pos(extracted.purchasePrice) ||
+    pos(extracted.rehabBudget) ||
+    /flip|bridge|rehab|value-?add|brrrr/.test(purposeBlob(extracted))
+  );
+}
+
+export function isSecondPosition(extracted: ExtractedScenario): boolean {
+  return /2nd|second|junior/.test(
+    `${extracted.lienPosition ?? ""} ${extracted.loanPurpose ?? ""}`.toLowerCase(),
+  );
+}
+
+function wantsNew1st(extracted: ExtractedScenario): boolean {
+  return /new\s*1st|new first|first position|refinance the first|payoff first/i.test(
+    `${extracted.loanPurpose ?? ""} ${extracted.lienPosition ?? ""}`,
+  );
+}
+
+interface LeverageParts {
+  estimatedLTV: number | null;
+  estimatedCLTV: number | null;
+  estimatedLTC: number | null;
+  estimatedARVLTV: number | null;
+}
+
+/**
+ * Choose which leverage figure leads the dashboard.
+ * - 2nd position or any existing senior debt → CLTV (primary)
+ * - purchase + rehab → LTC (or ARV-LTV)
+ * - otherwise (new 1st / refinance) → LTV
+ */
+export function determinePrimaryMetric(
+  extracted: ExtractedScenario,
+  parts: LeverageParts,
+): PrimaryMetric {
+  const second = isSecondPosition(extracted);
+  const hasDebt = pos(extracted.currentDebt);
+
+  // A 2nd position (or any existing senior debt) is ALWAYS led by CLTV — even
+  // when the deal text mentions "bridge" or "value-add".
+  if (second || hasDebt) {
+    return { key: "CLTV", label: "Combined LTV (CLTV)", value: parts.estimatedCLTV };
+  }
+
+  if (isPurchaseRehabDeal(extracted) && !isConstructionDeal(extracted)) {
+    if (parts.estimatedLTC !== null)
+      return { key: "LTC", label: "Loan-to-Cost", value: parts.estimatedLTC };
+    if (parts.estimatedARVLTV !== null)
+      return { key: "ARV-LTV", label: "Loan-to-ARV", value: parts.estimatedARVLTV };
+  }
+
+  return { key: "LTV", label: "Loan-to-Value", value: parts.estimatedLTV };
+}
 
 interface PathResult {
   possibleCapitalPath: string;
@@ -84,125 +159,149 @@ interface PathResult {
   riskNotes: string[];
 }
 
+function constructionGaps(extracted: ExtractedScenario): string[] {
+  return CONSTRUCTION_REQUIREMENTS.filter((req) => {
+    if (req.includes("Remaining budget")) return !pos(extracted.constructionBudget);
+    if (req.includes("As-complete")) return !pos(extracted.arv);
+    if (req.includes("As-is")) return !pos(extracted.estimatedValue);
+    if (req.includes("stage")) return !extracted.projectStatus;
+    if (req.includes("Exit")) return !extracted.exitStrategy;
+    return false;
+  }).map((r) => r.toLowerCase());
+}
+
 /**
  * Deterministic capital-path decision. The AI never decides this — it only
- * supplies the extracted inputs.
+ * supplies extracted inputs. Never returns a decline; over-leveraged scenarios
+ * route to "Needs Restructuring".
  */
 export function determineCapitalPath(
   extracted: ExtractedScenario,
-  partial: Pick<
-    CalculatedScenario,
-    "estimatedLTV" | "estimatedCLTV" | "estimatedLTC" | "estimatedARVLTV"
-  >
+  parts: LeverageParts,
 ): PathResult {
   const riskNotes: string[] = [];
-  const { estimatedCLTV, estimatedLTC, estimatedARVLTV } = partial;
+  const second = isSecondPosition(extracted);
+  const hasDebt = pos(extracted.currentDebt);
+  const construction = isConstructionDeal(extracted);
+  // 2nd / existing-debt deals are routed by CLTV below, never as purchase-rehab,
+  // so an over-leveraged 2nd can still reach "Needs Restructuring".
+  const purchaseRehab =
+    isPurchaseRehabDeal(extracted) && !construction && !second && !hasDebt;
 
-  const isPurchaseRehab =
-    (extracted.purchasePrice ?? 0) > 0 || (extracted.rehabBudget ?? 0) > 0;
-  const isConstruction =
-    (extracted.constructionBudget ?? 0) > 0 ||
-    /construction|finish|complete|build/i.test(
-      extracted.loanPurpose ?? ""
+  // ---- Construction completion (alone or stacked behind a 1st) ----
+  if (construction) {
+    const verdict = gradeLeverage(
+      second || hasDebt ? "2nd" : "1st",
+      second || hasDebt ? parts.estimatedCLTV : parts.estimatedARVLTV ?? parts.estimatedLTV,
     );
-  const wantsCashOut =
-    (extracted.requestedCashOut ?? 0) > 0 ||
-    /cash[\s-]?out|refi|refinance|equity/i.test(extracted.loanPurpose ?? "");
-  const hasExistingDebt = (extracted.currentDebt ?? 0) > 0;
+    riskNotes.push(...verdict.notes);
 
-  // ---- Construction completion ----
-  if (isConstruction && !isPurchaseRehab) {
-    if (estimatedARVLTV !== null && estimatedARVLTV > HIGH_ARV_LTV) {
-      riskNotes.push(
-        `Requested capital is ${estimatedARVLTV}% of completed value, which is on the higher side for completion financing.`
-      );
+    const gaps = constructionGaps(extracted);
+    if (gaps.length > 0) {
+      riskNotes.push(`Construction completion review still needs: ${gaps.join(", ")}.`);
     }
+
+    const path =
+      second || hasDebt
+        ? "2nd Deed of Trust / Construction Completion Capital"
+        : "Construction Completion Capital";
+    const description =
+      "Based on the information provided, this scenario may fit a construction " +
+      "completion facility that funds the remaining project budget, subject to " +
+      "review of plans, budget, completed work, and exit.";
+
+    const noLeverageYet =
+      (second || hasDebt ? parts.estimatedCLTV : parts.estimatedLTV) === null;
+
     return {
-      possibleCapitalPath: "Construction Completion Capital",
-      capitalPathDescription:
-        "Based on the information provided, this scenario may fit a construction completion facility that funds the remaining project budget, subject to review of plans, budget, and completed work.",
-      scenarioStrength: highLeverageStrength(
-        riskNotes,
-        estimatedCLTV,
-        estimatedLTC,
-        estimatedARVLTV
-      ),
+      possibleCapitalPath: path,
+      capitalPathDescription: description,
+      scenarioStrength: noLeverageYet ? "Needs More Info" : verdict.strength,
       riskNotes,
     };
   }
 
   // ---- Fix & Flip / Bridge (purchase + rehab) ----
-  if (isPurchaseRehab) {
-    if (estimatedLTC !== null && estimatedLTC > HIGH_LEVERAGE_LTC) {
-      riskNotes.push(
-        `Loan-to-cost is ${estimatedLTC}%, above a typical bridge comfort range. Additional equity or a stronger exit may be needed.`
-      );
+  if (purchaseRehab) {
+    if (parts.estimatedLTC !== null) {
+      riskNotes.push(`Estimated loan-to-cost is ~${parts.estimatedLTC}%.`);
+      if (parts.estimatedLTC > LEVERAGE_GUIDELINES.bridge.ltcCeiling)
+        riskNotes.push(
+          "Loan-to-cost is above a typical bridge comfort range; additional equity or a stronger exit may be needed.",
+        );
+    } else {
+      riskNotes.push("Add the requested financing amount to size loan-to-cost.");
     }
-    if (estimatedARVLTV !== null && estimatedARVLTV > HIGH_ARV_LTV) {
-      riskNotes.push(
-        `Loan is ${estimatedARVLTV}% of ARV; many bridge sources cap closer to 65–70% of ARV.`
-      );
+    if (parts.estimatedARVLTV !== null) {
+      riskNotes.push(`Loan against ARV is ~${parts.estimatedARVLTV}%.`);
+      if (parts.estimatedARVLTV > LEVERAGE_GUIDELINES.bridge.arvCeiling)
+        riskNotes.push("Many bridge sources cap closer to 65–70% of ARV.");
+    } else if (!pos(extracted.arv)) {
+      riskNotes.push("After-repair value (ARV) was not provided, which limits sizing.");
     }
-    if (extracted.arv == null) {
-      riskNotes.push(
-        "After-Repair Value (ARV) was not provided, which limits how tightly this can be sized."
-      );
-    }
+
+    const grade = gradeLeverage("1st", parts.estimatedARVLTV ?? parts.estimatedLTC);
     return {
       possibleCapitalPath: "Fix & Flip / Bridge",
       capitalPathDescription:
-        "Based on the information provided, this scenario may fit a short-term fix & flip or bridge facility sized against cost and after-repair value, subject to review.",
-      scenarioStrength: highLeverageStrength(
-        riskNotes,
-        estimatedCLTV,
-        estimatedLTC,
-        estimatedARVLTV
-      ),
+        "Based on the information provided, this scenario may fit a short-term " +
+        "fix & flip or bridge facility sized against cost and after-repair value, " +
+        "subject to review.",
+      scenarioStrength:
+        parts.estimatedLTC === null && parts.estimatedARVLTV === null
+          ? "Needs More Info"
+          : grade.strength,
       riskNotes,
     };
   }
 
-  // ---- Cash-out / refinance against existing equity ----
-  if (estimatedCLTV !== null) {
-    if (estimatedCLTV <= CASH_OUT_CLTV_CEILING) {
+  // ---- Cash-out / equity / refinance ----
+  if (second || hasDebt || pos(extracted.requestedCashOut)) {
+    if (second || hasDebt) {
+      const verdict = gradeLeverage("2nd", parts.estimatedCLTV);
+      riskNotes.push(...verdict.notes);
+
+      if (verdict.strength === "Needs Restructure") {
+        return {
+          possibleCapitalPath: "Needs Restructuring",
+          capitalPathDescription:
+            "Combined leverage is above what most private capital sources will " +
+            "hold without changes to loan amount, collateral, or structure. This " +
+            "scenario may require restructuring rather than a decline.",
+          scenarioStrength: "Needs Restructure",
+          riskNotes,
+        };
+      }
+
       const path =
-        hasExistingDebt && !wantsNew1st(extracted)
-          ? "2nd Deed of Trust"
-          : "New 1st Refinance";
+        hasDebt && !wantsNew1st(extracted) ? "2nd Deed of Trust" : "New 1st Refinance";
       const description =
         path === "2nd Deed of Trust"
-          ? "Based on the information provided, this scenario may fit as a 2nd position loan behind the existing first, subject to review."
-          : "Based on the information provided, this scenario may fit a new 1st-position refinance that pays off the existing debt and delivers the requested proceeds, subject to review.";
+          ? "Based on the information provided, this scenario may fit as a 2nd " +
+            "position loan behind the existing first, subject to review."
+          : "Based on the information provided, this scenario may fit a new 1st-" +
+            "position refinance that pays off the existing debt and delivers the " +
+            "requested proceeds, subject to review.";
       return {
         possibleCapitalPath: path,
         capitalPathDescription: description,
-        scenarioStrength: estimatedCLTV <= 60 ? "Strong" : "Moderate",
+        scenarioStrength: parts.estimatedCLTV === null ? "Needs More Info" : verdict.strength,
         riskNotes,
       };
     }
 
-    if (estimatedCLTV <= HIGH_LEVERAGE_CLTV) {
-      riskNotes.push(
-        `Combined leverage is ${estimatedCLTV}%, above the ~70% comfort range for many private sources.`
-      );
-      return {
-        possibleCapitalPath: "New 1st Refinance",
-        capitalPathDescription:
-          "Combined leverage is elevated. A new 1st-position refinance may work better than stacking a 2nd, subject to review.",
-        scenarioStrength: "Moderate",
-        riskNotes,
-      };
-    }
-
-    // High leverage — restructure rather than decline.
-    riskNotes.push(
-      `Combined leverage is ${estimatedCLTV}%, which is high. This scenario may need restructuring before it can be placed.`
-    );
+    const verdict = gradeLeverage("1st", parts.estimatedLTV);
+    riskNotes.push(...verdict.notes);
     return {
-      possibleCapitalPath: "Needs Restructuring",
+      possibleCapitalPath:
+        verdict.strength === "Needs Restructure" ? "Needs Restructuring" : "New 1st Refinance",
       capitalPathDescription:
-        "This scenario may need restructuring. Combined leverage is above what most private capital sources will hold without changes to loan amount, collateral, or structure.",
-      scenarioStrength: "Needs Restructure",
+        verdict.strength === "Needs Restructure"
+          ? "Requested leverage is above the typical comfort range; this scenario " +
+            "may require restructuring before it can be placed."
+          : "Based on the information provided, this scenario may fit a new 1st-" +
+            "position loan against the property, subject to review.",
+      scenarioStrength: parts.estimatedLTV === null ? "Needs More Info" : verdict.strength,
       riskNotes,
     };
   }
@@ -211,132 +310,230 @@ export function determineCapitalPath(
   return {
     possibleCapitalPath: "Pending More Information",
     capitalPathDescription:
-      "A capital path can be identified once a few more details are provided. Add the property value and the amount you are looking to borrow to see likely options.",
+      "A capital path can be identified once a few more details are provided. " +
+      "Add the property value and the amount you are looking to borrow to see " +
+      "likely options.",
     scenarioStrength: "Needs More Info",
     riskNotes,
   };
 }
 
-function wantsNew1st(extracted: ExtractedScenario): boolean {
-  return /new\s*1st|first|refinance|refi|pay\s*off/i.test(
-    `${extracted.loanPurpose ?? ""} ${extracted.lienPosition ?? ""}`
+// --- lender matching ---------------------------------------------------------
+
+function ownerOccupiedBool(extracted: ExtractedScenario): boolean | null {
+  const occ = (extracted.occupancy ?? "").toLowerCase();
+  if (!occ) return null;
+  return /owner|primary|occupied|residence/.test(occ);
+}
+
+function businessPurposeBool(extracted: ExtractedScenario): boolean | null {
+  const bp = (extracted.businessPurpose ?? "").toLowerCase();
+  if (!bp) return null;
+  if (/business|investment|commercial/.test(bp)) return true;
+  if (/consumer|personal/.test(bp)) return false;
+  return null;
+}
+
+export function deriveLenderMatchCriteria(
+  extracted: ExtractedScenario,
+  calculated: Pick<CalculatedScenario, "estimatedLTV" | "estimatedCLTV">,
+): LenderMatchCriteria {
+  return {
+    maxLTVNeeded: calculated.estimatedLTV,
+    maxCLTVNeeded: calculated.estimatedCLTV,
+    requestedLienPosition: isSecondPosition(extracted) ? "2nd" : extracted.lienPosition,
+    propertyType: extracted.propertyType,
+    location: extracted.propertyLocation,
+    loanAmount:
+      extracted.requestedLoanAmount ??
+      extracted.requestedCashOut ??
+      extracted.constructionBudget ??
+      null,
+    constructionNeeded: isConstructionDeal(extracted),
+    ownerOccupied: ownerOccupiedBool(extracted),
+    businessPurpose: businessPurposeBool(extracted),
+    speedNeeded: extracted.closingTimeline,
+    exitStrategy: extracted.exitStrategy,
+  };
+}
+
+// --- missing info / questions / quick replies / gating ----------------------
+
+const FIELD_LABELS = {
+  value: "Estimated property value",
+  loanAmount: "Requested loan amount",
+  currentDebt: "Existing first loan balance",
+  lienPosition: "Lien position (1st or 2nd)",
+  purpose: "Loan purpose",
+  occupancy: "Occupancy (owner-occupied, investment, or second home)",
+  businessPurpose: "Business or consumer purpose",
+  projectStatus: "Project stage / status",
+  exitStrategy: "Exit strategy",
+  timeline: "Closing timeline",
+  location: "Property location / state",
+  role: "Your role (borrower, broker, or investor)",
+} as const;
+
+function hasLoanAsk(extracted: ExtractedScenario): boolean {
+  // The purchase price is NOT the requested loan — a purchase deal still needs
+  // an explicit financing amount.
+  return (
+    pos(extracted.requestedLoanAmount) ||
+    pos(extracted.requestedCashOut) ||
+    pos(extracted.constructionBudget)
   );
 }
 
-function highLeverageStrength(
-  riskNotes: string[],
-  cltv: number | null,
-  ltc: number | null,
-  arvLtv: number | null
-): ScenarioStrength {
-  const tooHigh =
-    (cltv !== null && cltv > HIGH_LEVERAGE_CLTV) ||
-    (ltc !== null && ltc > HIGH_LEVERAGE_LTC) ||
-    (arvLtv !== null && arvLtv > HIGH_ARV_LTV + 5);
-  if (tooHigh) return "Needs Restructure";
-  if (riskNotes.length >= 2) return "Moderate";
-  if (riskNotes.length === 1) return "Moderate";
-  return "Strong";
-}
-
-const FIELD_LABELS: Record<string, string> = {
-  propertyLocation: "Property location",
-  estimatedValue: "Estimated property value",
-  occupancy: "Occupancy (owner-occupied, investment, or second home)",
-  businessPurpose: "Loan purpose (business or consumer)",
-  loanPurpose: "What the financing is for",
-  exitStrategy: "Exit strategy (how the loan gets paid off)",
-};
-
 /**
- * Identify the most decision-relevant missing fields, in priority order.
+ * Decision-relevant missing fields, in priority order. Financial inputs come
+ * first (so leverage can be computed), then the compliance-critical fields
+ * (occupancy, business purpose), then the remaining intake fields.
  */
-export function findMissingInformation(
-  extracted: ExtractedScenario
-): string[] {
+export function findMissingInformation(extracted: ExtractedScenario): string[] {
   const missing: string[] = [];
 
-  if (!extracted.propertyLocation) missing.push(FIELD_LABELS.propertyLocation);
-  if (!extracted.estimatedValue && !extracted.purchasePrice) {
-    missing.push(FIELD_LABELS.estimatedValue);
-  }
-
-  const isPurchaseRehab =
-    (extracted.purchasePrice ?? 0) > 0 || (extracted.rehabBudget ?? 0) > 0;
-
-  if (
-    !extracted.requestedLoanAmount &&
-    !extracted.requestedCashOut &&
-    !isPurchaseRehab &&
-    !extracted.constructionBudget
-  ) {
-    missing.push("How much capital you are looking for");
-  }
-
+  if (!pos(extracted.estimatedValue) && !pos(extracted.purchasePrice))
+    missing.push(FIELD_LABELS.value);
+  if (!hasLoanAsk(extracted)) missing.push(FIELD_LABELS.loanAmount);
+  if (isSecondPosition(extracted) && !pos(extracted.currentDebt))
+    missing.push(FIELD_LABELS.currentDebt);
+  if (!extracted.lienPosition && !isSecondPosition(extracted))
+    missing.push(FIELD_LABELS.lienPosition);
+  if (!extracted.loanPurpose) missing.push(FIELD_LABELS.purpose);
   if (!extracted.occupancy) missing.push(FIELD_LABELS.occupancy);
   if (!extracted.businessPurpose) missing.push(FIELD_LABELS.businessPurpose);
+  if (isConstructionDeal(extracted) && !extracted.projectStatus)
+    missing.push(FIELD_LABELS.projectStatus);
   if (!extracted.exitStrategy) missing.push(FIELD_LABELS.exitStrategy);
+  if (!extracted.closingTimeline) missing.push(FIELD_LABELS.timeline);
+  if (!extracted.propertyLocation && extracted.propertyState !== "CA")
+    missing.push(FIELD_LABELS.location);
+  if (!extracted.borrowerRole) missing.push(FIELD_LABELS.role);
 
   return missing;
 }
 
-/**
- * The single most useful follow-up question based on what's missing.
- */
-export function getNextBestQuestion(missingInformation: string[]): string {
-  if (missingInformation.length === 0) {
-    return "Would you like to send this scenario for a deal review?";
-  }
+/** Map the first missing item to the ExtractedScenario field key it concerns. */
+export function getPendingField(
+  extracted: ExtractedScenario,
+): keyof ExtractedScenario | null {
+  const first = findMissingInformation(extracted)[0];
+  if (!first) return null;
+  const map: Record<string, keyof ExtractedScenario> = {
+    [FIELD_LABELS.value]: "estimatedValue",
+    [FIELD_LABELS.loanAmount]: "requestedLoanAmount",
+    [FIELD_LABELS.currentDebt]: "currentDebt",
+    [FIELD_LABELS.lienPosition]: "lienPosition",
+    [FIELD_LABELS.purpose]: "loanPurpose",
+    [FIELD_LABELS.occupancy]: "occupancy",
+    [FIELD_LABELS.businessPurpose]: "businessPurpose",
+    [FIELD_LABELS.projectStatus]: "projectStatus",
+    [FIELD_LABELS.exitStrategy]: "exitStrategy",
+    [FIELD_LABELS.timeline]: "closingTimeline",
+    [FIELD_LABELS.location]: "propertyLocation",
+    [FIELD_LABELS.role]: "borrowerRole",
+  };
+  return map[first] ?? null;
+}
 
+/** Minimum scenario facts required before "Ready for Broker Review". */
+export function meetsMinimumInfo(extracted: ExtractedScenario): boolean {
+  const hasLocation = !!extracted.propertyLocation || extracted.propertyState === "CA";
+  const hasValue = pos(extracted.estimatedValue) || pos(extracted.purchasePrice);
+  const hasLien = !!extracted.lienPosition || isSecondPosition(extracted);
+  const secondHasDebt = !isSecondPosition(extracted) || pos(extracted.currentDebt);
+
+  return (
+    hasLocation &&
+    hasValue &&
+    hasLoanAsk(extracted) &&
+    hasLien &&
+    secondHasDebt &&
+    !!extracted.loanPurpose &&
+    !!extracted.occupancy &&
+    !!extracted.businessPurpose &&
+    !!extracted.exitStrategy &&
+    !!extracted.closingTimeline &&
+    !!extracted.borrowerRole
+  );
+}
+
+/** The single most useful follow-up question given what's missing. */
+export function getNextBestQuestion(
+  missingInformation: string[],
+  extracted: ExtractedScenario,
+): string {
+  if (missingInformation.length === 0) {
+    return "This scenario looks ready for broker review. Add your contact details and consent below to send it in.";
+  }
   const first = missingInformation[0];
 
-  if (first.startsWith("Occupancy")) {
-    return "Is this property owner-occupied, investment, or second home?";
-  }
-  if (first.startsWith("Loan purpose")) {
-    return "Is the loan for business or consumer purpose?";
-  }
-  if (first.startsWith("Property location")) {
+  if (first === FIELD_LABELS.location)
     return "Where is the property located? (City and state)";
-  }
-  if (first.startsWith("Estimated property value")) {
+  if (first === FIELD_LABELS.value)
     return "What is the current estimated value of the property?";
-  }
-  if (first.startsWith("How much capital")) {
+  if (first === FIELD_LABELS.loanAmount)
     return "How much capital are you looking to raise on this deal?";
-  }
-  if (first.startsWith("Exit strategy")) {
-    return "How do you plan to pay off or exit this loan?";
-  }
+  if (first === FIELD_LABELS.currentDebt)
+    return "What is the balance on the existing first loan?";
+  if (first === FIELD_LABELS.lienPosition)
+    return "Are you looking for a 1st-position loan or a 2nd behind an existing first?";
+  if (first === FIELD_LABELS.purpose)
+    return "What is the financing for — cash-out, purchase, bridge, or construction completion?";
+  if (first === FIELD_LABELS.occupancy)
+    return "Is this property owner-occupied, investment, or business-purpose collateral?";
+  if (first === FIELD_LABELS.businessPurpose)
+    return "Is this loan for business/investment purpose or personal/consumer purpose?";
+  if (first === FIELD_LABELS.projectStatus)
+    return "What stage is the construction at, and how much is left to complete?";
+  if (first === FIELD_LABELS.exitStrategy)
+    return "How do you plan to exit or pay off this loan?";
+  if (first === FIELD_LABELS.timeline)
+    return "What is your target closing timeline?";
+  if (first === FIELD_LABELS.role)
+    return "Are you the borrower, a broker, or an investor on this deal?";
   return `Can you share: ${first.toLowerCase()}?`;
 }
 
-/**
- * Restructuring suggestions for high-leverage or weak scenarios. Never a
- * decline — always a path toward something fundable.
- */
+/** Context-aware quick-reply chips for the current next-best-question. */
+export function getQuickReplies(extracted: ExtractedScenario): string[] {
+  const missing = findMissingInformation(extracted);
+  if (missing.length === 0) return [];
+  const first = missing[0];
+
+  if (first === FIELD_LABELS.lienPosition)
+    return ["1st position", "2nd position", "Not sure"];
+  if (first === FIELD_LABELS.purpose)
+    return ["Cash-out", "Purchase", "Fix & flip / bridge", "Construction completion"];
+  if (first === FIELD_LABELS.occupancy)
+    return ["Investment property", "Owner-occupied", "Second home", "Not sure"];
+  if (first === FIELD_LABELS.businessPurpose)
+    return ["Business / investment purpose", "Consumer / personal purpose", "Not sure"];
+  if (first === FIELD_LABELS.projectStatus)
+    return ["Foundation / framing", "Mid-construction", "Finishing stage", "Stalled"];
+  if (first === FIELD_LABELS.exitStrategy)
+    return ["Sell / flip", "Refinance out", "Long-term hold", "Pay off at term"];
+  if (first === FIELD_LABELS.timeline)
+    return ["ASAP", "2–3 weeks", "30 days", "Flexible"];
+  if (first === FIELD_LABELS.role)
+    return ["I'm the borrower", "I'm a broker", "I'm an investor"];
+  return [];
+}
+
+/** Restructuring suggestions — never a decline, always a path forward. */
 export function getRestructureOptions(
   extracted: ExtractedScenario,
-  calculated: Pick<
-    CalculatedScenario,
-    "estimatedCLTV" | "estimatedLTC" | "estimatedARVLTV" | "scenarioStrength"
-  >
+  calculated: Pick<CalculatedScenario, "scenarioStrength">,
 ): string[] {
-  if (
-    calculated.scenarioStrength !== "Needs Restructure" &&
-    (calculated.estimatedCLTV ?? 0) <= HIGH_LEVERAGE_CLTV &&
-    (calculated.estimatedLTC ?? 0) <= HIGH_LEVERAGE_LTC
-  ) {
-    return [];
-  }
+  if (calculated.scenarioStrength !== "Needs Restructure") return [];
 
   const options = [
     "Lower the requested loan amount to bring leverage into range",
     "Add additional collateral or a cross-collateralized property",
-    "Structure as a new 1st position instead of a 2nd",
-    "Use staged or milestone-based funding",
-    "Provide a stronger, documented exit strategy",
   ];
-
+  if (pos(extracted.currentDebt))
+    options.push("Structure as a new 1st position instead of a 2nd");
+  options.push("Use staged or milestone-based funding");
+  options.push("Provide a stronger, documented exit strategy");
   return options;
 }

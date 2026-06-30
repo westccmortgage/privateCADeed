@@ -12,20 +12,26 @@ import {
   Target,
   HelpCircle,
   MessageCircleQuestion,
-  Bookmark,
-  Send,
-  CalendarCheck,
   Route,
   ShieldAlert,
   Check,
+  Gauge,
+  Landmark,
 } from "lucide-react";
-import type { AnalyzeDealResponse, ScenarioStrength } from "@/lib/types";
+import type {
+  CalculatedScenario,
+  ExtractedScenario,
+  ScenarioStrength,
+} from "@/lib/types";
+import { OWNER_OCCUPIED_CAUTION } from "@/lib/compliance-rules";
 
 interface ScenarioResultProps {
-  data: AnalyzeDealResponse;
-  onSave: () => void;
-  saving: boolean;
-  saved: boolean;
+  scenario: ExtractedScenario;
+  calculated: CalculatedScenario;
+  missingInformation: string[];
+  nextBestQuestion: string;
+  restructureOptions: string[];
+  ownerOccupied: boolean;
 }
 
 function formatMoney(n: number | null): string {
@@ -64,9 +70,7 @@ function Stat({
     <div className="rounded-2xl border border-hairline bg-white/70 p-4">
       <div className="flex items-center gap-2 text-navy-muted">
         <span className="text-navy-muted">{icon}</span>
-        <span className="text-[12px] font-medium uppercase tracking-wide">
-          {label}
-        </span>
+        <span className="text-[12px] font-medium uppercase tracking-wide">{label}</span>
       </div>
       <p
         className={`mt-2 text-[20px] font-semibold tracking-tight ${
@@ -81,34 +85,45 @@ function Stat({
 
 const container = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05, delayChildren: 0.05 },
-  },
+  show: { opacity: 1, transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
 };
 const item = {
   hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const } },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
+  },
 };
 
 export default function ScenarioResult({
-  data,
-  onSave,
-  saving,
-  saved,
+  scenario,
+  calculated,
+  missingInformation,
+  nextBestQuestion,
+  restructureOptions,
+  ownerOccupied,
 }: ScenarioResultProps) {
-  const { extracted, calculated, missingInformation, nextBestQuestion } = data;
   const [showAllRisks, setShowAllRisks] = useState(false);
 
   const requestedDisplay =
-    extracted.requestedLoanAmount ??
-    extracted.requestedCashOut ??
-    extracted.constructionBudget ??
+    scenario.requestedLoanAmount ??
+    scenario.requestedCashOut ??
+    scenario.constructionBudget ??
     null;
+
+  const lienDisplay =
+    scenario.lienPosition === "2nd"
+      ? "2nd position"
+      : scenario.lienPosition === "1st"
+        ? "1st position"
+        : "—";
 
   const risksToShow = showAllRisks
     ? calculated.riskNotes
     : calculated.riskNotes.slice(0, 2);
+
+  const pm = calculated.primaryMetric;
 
   return (
     <motion.section
@@ -129,7 +144,7 @@ export default function ScenarioResult({
               CA Deed Scenario
             </h2>
             <p className="mt-0.5 text-[13px] text-navy-muted">
-              Generated from your description · subject to review
+              Preliminary scenario · subject to review
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wide text-gold">
@@ -138,58 +153,114 @@ export default function ScenarioResult({
         </motion.div>
 
         <div className="space-y-6 p-6 sm:p-8">
-          {/* Core stat grid */}
+          {/* Owner-occupied caution */}
+          {ownerOccupied && (
+            <motion.div
+              variants={item}
+              className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4"
+            >
+              <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-600" />
+              <p className="text-[13.5px] leading-relaxed text-amber-900">
+                {OWNER_OCCUPIED_CAUTION}
+              </p>
+            </motion.div>
+          )}
+
+          {/* Primary leverage metric — CLTV leads for 2nd position */}
           <motion.div
             variants={item}
-            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-gold/30 bg-gold/[0.07] p-5"
           >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 text-gold">
+                <Gauge size={20} />
+              </span>
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-navy-muted">
+                  Primary metric · {pm.label}
+                </p>
+                <p className="text-[13px] text-navy-muted">
+                  {pm.key === "CLTV"
+                    ? "Existing first loan + requested new loan ÷ value"
+                    : pm.key === "LTC"
+                      ? "Requested loan ÷ total project cost"
+                      : pm.key === "ARV-LTV"
+                        ? "Requested loan ÷ after-repair value"
+                        : "Requested loan ÷ property value"}
+                </p>
+              </div>
+            </div>
+            <p className="text-[32px] font-semibold tracking-tight text-navy">
+              {formatPercent(pm.value)}
+            </p>
+          </motion.div>
+
+          {/* Core stat grid */}
+          <motion.div variants={item} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Stat
               icon={<MapPin size={15} />}
               label="Location"
-              value={extracted.propertyLocation ?? "—"}
+              value={scenario.propertyLocation ?? (scenario.propertyState === "CA" ? "California" : "—")}
             />
             <Stat
               icon={<Building2 size={15} />}
               label="Estimated Value"
-              value={formatMoney(extracted.estimatedValue)}
+              value={formatMoney(scenario.estimatedValue)}
             />
             <Stat
               icon={<Wallet size={15} />}
-              label="Current Debt"
-              value={formatMoney(extracted.currentDebt)}
+              label="Existing First Loan"
+              value={formatMoney(scenario.currentDebt)}
             />
             <Stat
               icon={<HandCoins size={15} />}
               label="Requested Loan"
               value={formatMoney(requestedDisplay)}
             />
-            <Stat
-              icon={<HandCoins size={15} />}
-              label="Cash-Out"
-              value={formatMoney(extracted.requestedCashOut)}
-            />
+            <Stat icon={<Landmark size={15} />} label="Lien Position" value={lienDisplay} />
             <Stat
               icon={<Target size={15} />}
               label="Loan Purpose"
-              value={extracted.loanPurpose ?? "—"}
+              value={scenario.loanPurpose ?? "—"}
             />
             <Stat
               icon={<TrendingUp size={15} />}
-              label="Estimated LTV"
+              label="New-Money LTV"
               value={formatPercent(calculated.estimatedLTV)}
-              accent
+              accent={pm.key === "LTV"}
             />
             <Stat
               icon={<Layers size={15} />}
               label="Estimated CLTV"
               value={formatPercent(calculated.estimatedCLTV)}
-              accent
+              accent={pm.key === "CLTV"}
             />
             <Stat
               icon={<Wallet size={15} />}
               label="Equity Remaining"
               value={formatMoney(calculated.equityRemaining)}
             />
+            <Stat
+              icon={<Wallet size={15} />}
+              label="Total Debt After Loan"
+              value={formatMoney(calculated.totalDebtAfterLoan)}
+            />
+            {calculated.estimatedLTC != null && (
+              <Stat
+                icon={<TrendingUp size={15} />}
+                label="Loan-to-Cost"
+                value={formatPercent(calculated.estimatedLTC)}
+                accent={pm.key === "LTC"}
+              />
+            )}
+            {calculated.estimatedARVLTV != null && (
+              <Stat
+                icon={<TrendingUp size={15} />}
+                label="Loan-to-ARV"
+                value={formatPercent(calculated.estimatedARVLTV)}
+                accent={pm.key === "ARV-LTV"}
+              />
+            )}
           </motion.div>
 
           {/* Likely capital path */}
@@ -227,8 +298,8 @@ export default function ScenarioResult({
             </span>
           </motion.div>
 
-          {/* Restructure options (only when present) */}
-          {data.restructureOptions.length > 0 && (
+          {/* Restructure options */}
+          {restructureOptions.length > 0 && (
             <motion.div
               variants={item}
               className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5"
@@ -237,7 +308,7 @@ export default function ScenarioResult({
                 This scenario may need restructuring
               </p>
               <ul className="mt-3 space-y-2">
-                {data.restructureOptions.map((opt) => (
+                {restructureOptions.map((opt) => (
                   <li
                     key={opt}
                     className="flex items-start gap-2 text-[14px] text-orange-900/85"
@@ -252,7 +323,10 @@ export default function ScenarioResult({
 
           {/* Risk notes */}
           {calculated.riskNotes.length > 0 && (
-            <motion.div variants={item} className="rounded-2xl border border-hairline bg-white/70 p-5">
+            <motion.div
+              variants={item}
+              className="rounded-2xl border border-hairline bg-white/70 p-5"
+            >
               <div className="flex items-center gap-2 text-navy">
                 <ShieldAlert size={16} className="text-gold" />
                 <span className="text-[13px] font-semibold uppercase tracking-wide">
@@ -276,9 +350,7 @@ export default function ScenarioResult({
                   onClick={() => setShowAllRisks((v) => !v)}
                   className="mt-3 text-[13px] font-medium text-navy-muted underline-offset-2 hover:underline"
                 >
-                  {showAllRisks
-                    ? "Show fewer"
-                    : `Show ${calculated.riskNotes.length - 2} more`}
+                  {showAllRisks ? "Show fewer" : `Show ${calculated.riskNotes.length - 2} more`}
                 </button>
               )}
             </motion.div>
@@ -295,7 +367,7 @@ export default function ScenarioResult({
               </div>
               {missingInformation.length === 0 ? (
                 <p className="mt-3 text-[14px] text-navy-soft">
-                  Nothing critical — this scenario is ready for review.
+                  Nothing critical — this scenario is ready for broker review.
                 </p>
               ) : (
                 <ul className="mt-3 space-y-2">
@@ -323,38 +395,6 @@ export default function ScenarioResult({
                 {nextBestQuestion}
               </p>
             </div>
-          </motion.div>
-
-          {/* Actions */}
-          <motion.div
-            variants={item}
-            className="flex flex-col gap-3 pt-1 sm:flex-row"
-          >
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={saving || saved}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-hairline bg-white/80 px-5 py-3 text-[14px] font-semibold text-navy transition-colors hover:border-navy/20 disabled:opacity-70"
-            >
-              {saved ? <Check size={17} /> : <Bookmark size={17} />}
-              {saved ? "Scenario Saved" : saving ? "Saving…" : "Save Scenario"}
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={saving}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-navy px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5 hover:bg-navy-soft"
-            >
-              <Send size={16} />
-              Send This Scenario for Review
-            </button>
-            <a
-              href="#book"
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-5 py-3 text-[14px] font-semibold text-navy transition-colors hover:bg-gold/20"
-            >
-              <CalendarCheck size={16} className="text-gold" />
-              Book Deal Review
-            </a>
           </motion.div>
         </div>
       </div>

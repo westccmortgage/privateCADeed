@@ -1,9 +1,16 @@
+import { COMPANY, telHref } from "@/lib/company";
+
 const FOOTER_LINKS = [
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Solutions", href: "#solutions" },
-  { label: "About Us", href: "#about" },
-  { label: "Resources", href: "#resources" },
-  { label: "Book Deal Review", href: "#book" },
+  { label: "How It Works", href: "/#how-it-works" },
+  { label: "Solutions", href: "/#solutions" },
+  { label: "Tools", href: "/tools" },
+  { label: "Resources", href: "/resources" },
+  { label: "FAQ", href: "/faq" },
+  { label: "For Borrowers", href: "/for-borrowers" },
+  { label: "For Brokers", href: "/for-brokers" },
+  { label: "For Capital Sources", href: "/for-capital-sources" },
+  { label: "Company", href: "/company" },
+  { label: "Legal & Privacy", href: "/legal" },
 ];
 
 export default function Footer() {
@@ -33,7 +40,18 @@ export default function Footer() {
           </nav>
         </div>
 
-        <p className="mt-8 text-[12px] leading-relaxed text-navy-muted/80">
+        <p className="mt-8 text-[12px] leading-relaxed text-navy-muted">
+          {COMPANY.legalName} · NMLS&nbsp;#{COMPANY.nmls} · {COMPANY.mailingAddress}
+          <br />
+          <a href={telHref(COMPANY.phoneOffice)} className="hover:text-navy">
+            {COMPANY.phoneOffice}
+          </a>{" "}
+          ·{" "}
+          <a href={`mailto:${COMPANY.email}`} className="hover:text-navy">
+            {COMPANY.email}
+          </a>
+        </p>
+        <p className="mt-2 text-[12px] leading-relaxed text-navy-muted/80">
           © {new Date().getFullYear()} CADeed.com · California Private Capital
           Engine. Information presented is for preliminary scenario modeling only
           and does not constitute a loan approval, commitment to lend, or an

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildScenario } from "@/lib/scenario-engine";
-import { extractWithOpenAI } from "@/lib/openai-extract";
+import { extractWithClaude } from "@/lib/claude-extract";
 import { mockExtract } from "@/lib/mock-extractor";
 import type { ExtractedScenario } from "@/lib/types";
 
@@ -39,11 +39,11 @@ export async function POST(request: Request) {
   let extracted: Partial<ExtractedScenario>;
   let usedFallback = false;
 
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.ANTHROPIC_API_KEY) {
     try {
-      extracted = await extractWithOpenAI(input);
+      extracted = await extractWithClaude(input);
     } catch (err) {
-      console.error("[analyze-deal] OpenAI extraction failed, using fallback:", err);
+      console.error("[analyze-deal] Claude extraction failed, using fallback:", err);
       extracted = mockExtract(input);
       usedFallback = true;
     }

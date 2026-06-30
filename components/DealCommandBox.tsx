@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp, Mic, ChevronDown, Sparkles, Square } from "lucide-react";
+import { ArrowUp, Mic, ChevronDown, Sparkles, Square, MicOff } from "lucide-react";
 import { DEAL_EXAMPLES, HERO_EXAMPLE, HERO_PLACEHOLDER } from "@/lib/examples";
 
 interface DealCommandBoxProps {
@@ -10,21 +10,45 @@ interface DealCommandBoxProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   loading: boolean;
+  placeholder?: string;
+  showExampleHint?: boolean;
 }
 
-// Minimal typing for the Web Speech API so we avoid `any`.
+// --- Minimal Web Speech API typings (avoid `any`) ---------------------------
+interface SpeechRecognitionResultLike {
+  0: { transcript: string };
+  isFinal: boolean;
+}
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+interface SpeechRecognitionErrorEventLike {
+  error: string;
+}
 interface SpeechRecognitionLike {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
   start: () => void;
   stop: () => void;
+  abort: () => void;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onstart: (() => void) | null;
 }
-interface SpeechRecognitionEventLike {
-  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+
+type MicStatus = "idle" | "listening" | "denied" | "unavailable";
+
+function getSpeechCtor(): SpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
 export default function DealCommandBox({
@@ -32,13 +56,29 @@ export default function DealCommandBox({
   onChange,
   onSubmit,
   loading,
+  placeholder,
+  showExampleHint = true,
 }: DealCommandBoxProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
+  const [micStatus, setMicStatus] = useState<MicStatus>("idle");
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const shouldKeepListeningRef = useRef(false); // survives re-renders / stale closures
+  const manualStopRef = useRef(false);
+  const runningRef = useRef(false);
+  const baseTextRef = useRef(""); // text present before / between dictation sessions
+  const sessionFinalRef = useRef(""); // finalized transcript for the active session
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valueRef = useRef(value);
+
+  // Keep a live ref to the current value so a fresh dictation session appends
+  // to whatever is already typed, without recreating handlers.
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   // Auto-grow the textarea.
   useEffect(() => {
@@ -50,11 +90,7 @@ export default function DealCommandBox({
 
   // Detect speech support on the client.
   useEffect(() => {
-    const w = window as unknown as {
-      SpeechRecognition?: new () => SpeechRecognitionLike;
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-    };
-    setSpeechSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
+    if (!getSpeechCtor()) setMicStatus("unavailable");
   }, []);
 
   // Close the example menu on outside click.
@@ -68,43 +104,161 @@ export default function DealCommandBox({
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  function toggleDictation() {
-    const w = window as unknown as {
-      SpeechRecognition?: new () => SpeechRecognitionLike;
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-    };
-    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor) return;
-
-    if (listening) {
-      recognitionRef.current?.stop();
-      return;
+  const clearRestartTimer = useCallback(() => {
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
     }
+  }, []);
+
+  const composeValue = useCallback((interim: string) => {
+    // Preserve the user's already-typed text verbatim; only normalize the
+    // dictated portion, then join with a single separating space.
+    const dictation = [sessionFinalRef.current, interim]
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(" ");
+    const base = baseTextRef.current;
+    if (base && dictation) return `${base} ${dictation}`;
+    return base || dictation;
+  }, []);
+
+  const beginSession = useCallback(() => {
+    const Ctor = getSpeechCtor();
+    if (!Ctor || runningRef.current) return;
+    sessionFinalRef.current = ""; // defensive: each instance owns one session
 
     const recognition = new Ctor();
     recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.onresult = (event) => {
-      const transcript = Array.from({ length: event.results.length })
-        .map((_, i) => event.results[i][0].transcript)
-        .join(" ");
-      onChange(value ? `${value} ${transcript}`.trim() : transcript);
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    recognition.onstart = () => {
+      runningRef.current = true;
+      setMicStatus("listening");
     };
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const transcript = res[0]?.transcript ?? "";
+        if (res.isFinal) final += transcript;
+        else interim += transcript;
+      }
+      if (final) {
+        sessionFinalRef.current = `${sessionFinalRef.current} ${final}`.trim();
+      }
+      onChange(composeValue(interim));
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        // Permission denied — stop for good and surface a clean message.
+        shouldKeepListeningRef.current = false;
+        runningRef.current = false;
+        setMicStatus("denied");
+        return;
+      }
+      // "no-speech", "aborted", "network" etc. — let onend decide on a restart.
+    };
+
+    recognition.onend = () => {
+      runningRef.current = false;
+      // Fold the finalized session text into the base so it always persists.
+      baseTextRef.current = composeValue("");
+      sessionFinalRef.current = "";
+
+      if (shouldKeepListeningRef.current && !manualStopRef.current) {
+        // Browser ended recognition automatically (e.g. a pause). Restart with
+        // a FRESH instance — reusing the just-ended one can throw
+        // InvalidStateError or replay buffered results (duplicated text).
+        clearRestartTimer();
+        restartTimerRef.current = setTimeout(() => {
+          if (shouldKeepListeningRef.current) beginSession();
+        }, 250);
+      } else {
+        setMicStatus("idle");
+      }
+    };
+
     recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
-  }
+    try {
+      recognition.start();
+      runningRef.current = true; // synchronous guard against a double-start race
+    } catch {
+      // start() can throw if called too quickly; retry shortly.
+      runningRef.current = false;
+      clearRestartTimer();
+      restartTimerRef.current = setTimeout(() => beginSession(), 300);
+    }
+  }, [clearRestartTimer, composeValue, onChange]);
+
+  const startListening = useCallback(() => {
+    if (micStatus === "unavailable" || shouldKeepListeningRef.current) return;
+    manualStopRef.current = false;
+    shouldKeepListeningRef.current = true;
+    baseTextRef.current = valueRef.current.trim();
+    sessionFinalRef.current = "";
+    beginSession();
+  }, [beginSession, micStatus]);
+
+  const stopListening = useCallback(() => {
+    manualStopRef.current = true;
+    shouldKeepListeningRef.current = false;
+    clearRestartTimer();
+    const rec = recognitionRef.current;
+    if (rec) {
+      try {
+        rec.stop();
+      } catch {
+        /* no-op */
+      }
+    }
+    runningRef.current = false;
+    setMicStatus((s) => (s === "denied" || s === "unavailable" ? s : "idle"));
+  }, [clearRestartTimer]);
+
+  const toggleDictation = useCallback(() => {
+    if (shouldKeepListeningRef.current) stopListening();
+    else startListening();
+  }, [startListening, stopListening]);
+
+  // Clean up on unmount.
+  useEffect(() => {
+    return () => {
+      shouldKeepListeningRef.current = false;
+      manualStopRef.current = true;
+      clearRestartTimer();
+      const rec = recognitionRef.current;
+      if (rec) {
+        rec.onresult = null;
+        rec.onend = null;
+        rec.onerror = null;
+        rec.onstart = null;
+        try {
+          rec.abort();
+        } catch {
+          /* no-op */
+        }
+      }
+    };
+  }, [clearRestartTimer]);
+
+  const handleSubmit = useCallback(() => {
+    if (shouldKeepListeningRef.current) stopListening(); // stop dictation on submit
+    onSubmit();
+  }, [onSubmit, stopListening]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (value.trim() && !loading) onSubmit();
+      if (value.trim() && !loading) handleSubmit();
     }
   }
 
+  const listening = micStatus === "listening";
   const canSubmit = value.trim().length > 0 && !loading;
 
   return (
@@ -122,18 +276,18 @@ export default function DealCommandBox({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={2}
-            placeholder={HERO_PLACEHOLDER}
+            placeholder={placeholder ?? HERO_PLACEHOLDER}
             className="block w-full resize-none border-0 bg-transparent text-[17px] leading-relaxed text-navy outline-none placeholder:text-navy-muted/70 sm:text-[18px]"
           />
 
-          {!value && (
+          {!value && showExampleHint && (
             <p className="mt-1 select-none text-[13px] italic text-navy-muted/70">
               {HERO_EXAMPLE}
             </p>
           )}
 
           <div className="mt-4 flex items-center justify-between">
-            {/* Left controls: try an example */}
+            {/* Left: try an example */}
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
@@ -181,26 +335,38 @@ export default function DealCommandBox({
               </AnimatePresence>
             </div>
 
-            {/* Right controls: mic + submit */}
+            {/* Right: mic + submit */}
             <div className="flex items-center gap-2">
-              {speechSupported && (
+              {micStatus !== "unavailable" && (
                 <button
                   type="button"
                   onClick={toggleDictation}
                   aria-label={listening ? "Stop dictation" : "Dictate your deal"}
-                  className={`flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${
+                  aria-pressed={listening}
+                  className={`relative flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${
                     listening
                       ? "border-gold bg-gold/15 text-gold"
-                      : "border-hairline bg-white/70 text-navy-soft hover:text-navy"
+                      : micStatus === "denied"
+                        ? "border-red-200 bg-red-50 text-red-500"
+                        : "border-hairline bg-white/70 text-navy-soft hover:text-navy"
                   }`}
                 >
-                  {listening ? <Square size={16} /> : <Mic size={18} />}
+                  {listening && (
+                    <span className="absolute inset-0 animate-ping rounded-full bg-gold/20" />
+                  )}
+                  {micStatus === "denied" ? (
+                    <MicOff size={18} />
+                  ) : listening ? (
+                    <Square size={16} />
+                  ) : (
+                    <Mic size={18} />
+                  )}
                 </button>
               )}
 
               <button
                 type="button"
-                onClick={onSubmit}
+                onClick={handleSubmit}
                 disabled={!canSubmit}
                 aria-label="Analyze deal"
                 className={`flex h-11 w-11 items-center justify-center rounded-full text-white transition-all ${
@@ -224,9 +390,21 @@ export default function DealCommandBox({
         </div>
       </motion.div>
 
-      {listening && (
-        <p className="mt-3 text-center text-[13px] font-medium text-gold">
-          Listening… speak your deal
+      <AnimatePresence>
+        {listening && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-3 text-center text-[13px] font-medium text-gold"
+          >
+            Listening… speak naturally. Tap the mic or send to stop.
+          </motion.p>
+        )}
+      </AnimatePresence>
+      {micStatus === "denied" && (
+        <p className="mt-3 text-center text-[13px] font-medium text-red-500">
+          Microphone access is blocked. Allow mic access in your browser to dictate.
         </p>
       )}
     </div>

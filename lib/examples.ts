@@ -5,6 +5,10 @@ export interface DealExample {
 
 export const DEAL_EXAMPLES: DealExample[] = [
   {
+    label: "2nd position · mid-construction",
+    text: "Need a 500k loan for second position mid construction, current first loan 3mil, value is 6 mil.",
+  },
+  {
     label: "Cash-out refinance",
     text: "I need $300K cash-out on a Los Angeles property worth $1.2M. I owe $520K and need to close fast.",
   },
@@ -15,10 +19,6 @@ export const DEAL_EXAMPLES: DealExample[] = [
   {
     label: "Construction completion",
     text: "My bank declined my construction loan. I need $600K to finish a project in San Diego.",
-  },
-  {
-    label: "2nd deed of trust",
-    text: "My client needs a second deed of trust in California. Property is worth $2M, first loan is $900K, client needs $250K.",
   },
 ];
 

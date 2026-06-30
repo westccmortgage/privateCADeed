@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
+import { buildScenarioPayload, sendScenarioToGRCRM } from "@/lib/grcrm-client";
+import { sendNotificationEmail } from "@/lib/notify";
+import { consentSatisfied } from "@/lib/compliance-rules";
+import { normalizeScenario } from "@/lib/scenario-merger";
+import { buildCalculated } from "@/lib/scenario-engine";
+import { findMissingInformation, getNextBestQuestion } from "@/lib/deal-calculator";
 import type {
   CalculatedScenario,
+  ChatTurn,
   ExtractedScenario,
-  SaveScenarioPayload,
+  UserContact,
 } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -10,20 +17,19 @@ export const dynamic = "force-dynamic";
 
 interface SaveRequestBody {
   rawUserInput?: string;
-  extractedScenario?: ExtractedScenario;
+  rawConversation?: ChatTurn[];
+  extractedScenario?: Partial<ExtractedScenario>;
   calculatedScenario?: CalculatedScenario;
-  userContact?: SaveScenarioPayload["userContact"];
-}
-
-/** Simple, dependency-free unique id (timestamp + random suffix). */
-function makeScenarioId(): string {
-  const rand = Math.random().toString(36).slice(2, 10);
-  return `cad_${Date.now().toString(36)}_${rand}`;
+  missingInformation?: string[];
+  nextBestQuestion?: string;
+  consentGiven?: boolean;
+  userContact?: UserContact;
 }
 
 /**
- * Prepares a GRCRM payload. If GRCRM_WEBHOOK_URL is set, the payload is POSTed
- * to that webhook. Otherwise it is logged for now.
+ * Builds the GRCRM scenario payload and forwards it. Requires explicit consent.
+ * If GRCRM_WEBHOOK_URL is not configured, the payload is logged and a friendly
+ * "saved locally" message is returned — the app keeps working.
  */
 export async function POST(request: Request) {
   let body: SaveRequestBody;
@@ -33,64 +39,74 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (!body.extractedScenario || !body.calculatedScenario) {
+  if (!body.extractedScenario) {
+    return NextResponse.json({ error: "Missing scenario data." }, { status: 400 });
+  }
+
+  // Consent is mandatory before anything leaves CADeed.
+  if (!consentSatisfied(body.consentGiven)) {
     return NextResponse.json(
-      { error: "Missing scenario data." },
-      { status: 400 }
+      { error: "Consent is required before sending this scenario for review." },
+      { status: 400 },
     );
   }
 
-  const payload: SaveScenarioPayload = {
-    sourceDomain: "CADeed.com",
-    scenarioId: makeScenarioId(),
+  const extracted = normalizeScenario(body.extractedScenario);
+  // Recompute the math server-side so the payload is always authoritative.
+  const calculated = buildCalculated(extracted);
+  const missingInformation =
+    body.missingInformation ?? findMissingInformation(extracted);
+  const nextBestQuestion =
+    body.nextBestQuestion ?? getNextBestQuestion(missingInformation, extracted);
+
+  const payload = buildScenarioPayload({
     rawUserInput: body.rawUserInput ?? "",
-    extractedScenario: body.extractedScenario,
-    calculatedScenario: body.calculatedScenario,
-    userContact: body.userContact,
-    createdAt: new Date().toISOString(),
-  };
+    rawConversation: Array.isArray(body.rawConversation) ? body.rawConversation : [],
+    extractedScenario: extracted,
+    calculatedScenario: calculated,
+    missingInformation,
+    nextBestQuestion,
+    consentGiven: true,
+    userContact: body.userContact ?? {},
+    timestamp: new Date().toISOString(),
+  });
 
-  const webhookUrl = process.env.GRCRM_WEBHOOK_URL;
+  const result = await sendScenarioToGRCRM(payload);
 
-  if (webhookUrl) {
-    try {
-      const res = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        console.error(
-          `[save-scenario] GRCRM webhook responded ${res.status}`
-        );
-        return NextResponse.json(
-          {
-            ok: false,
-            scenarioId: payload.scenarioId,
-            error: "GRCRM webhook rejected the scenario.",
-          },
-          { status: 502 }
-        );
-      }
-    } catch (err) {
-      console.error("[save-scenario] GRCRM webhook error:", err);
-      return NextResponse.json(
-        {
-          ok: false,
-          scenarioId: payload.scenarioId,
-          error: "Could not reach GRCRM.",
-        },
-        { status: 502 }
-      );
-    }
-  } else {
-    // No webhook configured yet — log the prepared payload.
-    console.log("[save-scenario] GRCRM_WEBHOOK_URL not set. Payload prepared:");
-    console.log(JSON.stringify(payload, null, 2));
-  }
+  // Email safety-net so a lead is never lost before GRCRM is wired up.
+  const lm = payload.lenderMatchCriteria;
+  const c = payload.userContact;
+  const emailResult = await sendNotificationEmail(
+    `New CADeed scenario — ${payload.recommendedCapitalPath} (${payload.scenarioId})`,
+    [
+      `New scenario from CADeed.com`,
+      ``,
+      `Contact: ${c.name ?? "—"} · ${c.email ?? "—"} · ${c.phone ?? "—"} · ${c.role ?? "—"}`,
+      `Location: ${extracted.propertyLocation ?? extracted.propertyState ?? "—"}`,
+      `Value: ${extracted.estimatedValue ?? "—"} · Existing 1st: ${extracted.currentDebt ?? "—"} · Requested: ${lm.loanAmount ?? "—"}`,
+      `Lien: ${extracted.lienPosition ?? "—"} · Purpose: ${extracted.loanPurpose ?? "—"} · Occupancy: ${extracted.occupancy ?? "—"} · Business purpose: ${extracted.businessPurpose ?? "—"}`,
+      `CLTV: ${calculated.estimatedCLTV ?? "—"}% · LTV: ${calculated.estimatedLTV ?? "—"}% · Path: ${payload.recommendedCapitalPath} (${calculated.scenarioStrength})`,
+      `Exit: ${extracted.exitStrategy ?? "—"} · Timeline: ${extracted.closingTimeline ?? "—"}`,
+      `Compliance flags: ${payload.complianceFlags.join(", ") || "none"}`,
+      ``,
+      `Raw: ${payload.rawUserInput}`,
+    ].join("\n"),
+  );
+
+  // Borrower-facing message stays reassuring; technical GRCRM/email state is for logs/flags.
+  const userMessage =
+    "Scenario received — a licensed mortgage professional will review it and reach out. " +
+    "This is not a loan approval or commitment to lend.";
 
   return NextResponse.json(
-    { ok: true, scenarioId: payload.scenarioId, forwarded: !!webhookUrl },
-    { status: 200 }
+    {
+      ok: true,
+      scenarioId: payload.scenarioId,
+      configured: result.configured,
+      forwarded: result.sent,
+      emailed: emailResult.sent,
+      message: userMessage,
+    },
+    { status: 200 },
   );
 }
