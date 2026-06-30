@@ -47,6 +47,7 @@ export interface CalculatedScenario {
   estimatedCLTV: number | null; // (currentDebt + new money) / value
   estimatedLTC: number | null; // loan-to-cost (purchase + rehab)
   estimatedARVLTV: number | null; // loan-to-ARV / as-complete
+  seniorPositionAmount: number | null; // debt/basis ahead of the new money
   totalDebtAfterLoan: number | null;
   equityRemaining: number | null;
   primaryMetric: PrimaryMetric;

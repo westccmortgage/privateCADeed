@@ -32,6 +32,32 @@ export function newMoneyAmount(extracted: ExtractedScenario): number {
   );
 }
 
+/**
+ * The senior position that sits AHEAD of the new (junior) money — this is what
+ * CLTV and total debt are measured against. Priority:
+ *   1. A stated existing first/senior LENDER loan balance (currentDebt).
+ *   2. Otherwise, for a construction/build deal where the new money is junior
+ *      (an explicit 2nd, or money already sunk into the project), the borrower's
+ *      basis already in first position = land/purchase price + construction
+ *      invested to date. A new 2nd sits behind that whole basis even when there
+ *      is no separate lender first loan.
+ *
+ * This is why "bought the land for $2.5M, spent $1.2M building, need a $500K 2nd"
+ * is a $3.7M senior position — NOT a $1.2M (or $2.5M) one. The land and the
+ * construction already invested are COMBINED.
+ */
+export function seniorAheadAmount(extracted: ExtractedScenario): number | null {
+  if (pos(extracted.currentDebt)) return extracted.currentDebt;
+  if (
+    isConstructionDeal(extracted) &&
+    (isSecondPosition(extracted) || pos(extracted.rehabBudget))
+  ) {
+    const invested = (extracted.purchasePrice ?? 0) + (extracted.rehabBudget ?? 0);
+    if (invested > 0) return invested;
+  }
+  return null;
+}
+
 /** Loan-to-Value of the requested new money against property value. */
 export function calculateLTV(
   requestedLoanAmount: number | null,
@@ -135,10 +161,12 @@ export function determinePrimaryMetric(
 ): PrimaryMetric {
   const second = isSecondPosition(extracted);
   const hasDebt = pos(extracted.currentDebt);
+  const hasSenior = seniorAheadAmount(extracted) != null;
 
-  // A 2nd position (or any existing senior debt) is ALWAYS led by CLTV — even
-  // when the deal text mentions "bridge" or "value-add".
-  if (second || hasDebt) {
+  // A 2nd position, any existing senior debt, or a construction deal with money
+  // already invested ahead of the new loan is ALWAYS led by CLTV — even when the
+  // deal text mentions "bridge" or "value-add".
+  if (second || hasDebt || hasSenior) {
     return { key: "CLTV", label: "Combined LTV (CLTV)", value: parts.estimatedCLTV };
   }
 
@@ -182,17 +210,21 @@ export function determineCapitalPath(
   const riskNotes: string[] = [];
   const second = isSecondPosition(extracted);
   const hasDebt = pos(extracted.currentDebt);
+  const hasSenior = seniorAheadAmount(extracted) != null;
   const construction = isConstructionDeal(extracted);
   // 2nd / existing-debt deals are routed by CLTV below, never as purchase-rehab,
   // so an over-leveraged 2nd can still reach "Needs Restructuring".
   const purchaseRehab =
     isPurchaseRehabDeal(extracted) && !construction && !second && !hasDebt;
 
-  // ---- Construction completion (alone or stacked behind a 1st) ----
+  // ---- Construction completion (alone or stacked behind a senior position) ----
   if (construction) {
+    // Junior when there's a senior position ahead (2nd, existing debt, or the
+    // borrower's land + construction already invested). Then it's graded on CLTV.
+    const junior = second || hasDebt || hasSenior;
     const verdict = gradeLeverage(
-      second || hasDebt ? "2nd" : "1st",
-      second || hasDebt ? parts.estimatedCLTV : parts.estimatedARVLTV ?? parts.estimatedLTV,
+      junior ? "2nd" : "1st",
+      junior ? parts.estimatedCLTV : parts.estimatedARVLTV ?? parts.estimatedLTV,
     );
     riskNotes.push(...verdict.notes);
 
@@ -201,17 +233,15 @@ export function determineCapitalPath(
       riskNotes.push(`Construction completion review still needs: ${gaps.join(", ")}.`);
     }
 
-    const path =
-      second || hasDebt
-        ? "2nd Deed of Trust / Construction Completion Capital"
-        : "Construction Completion Capital";
+    const path = junior
+      ? "2nd Deed of Trust / Construction Completion Capital"
+      : "Construction Completion Capital";
     const description =
       "Based on the information provided, this scenario may fit a construction " +
       "completion facility that funds the remaining project budget, subject to " +
       "review of plans, budget, completed work, and exit.";
 
-    const noLeverageYet =
-      (second || hasDebt ? parts.estimatedCLTV : parts.estimatedLTV) === null;
+    const noLeverageYet = (junior ? parts.estimatedCLTV : parts.estimatedLTV) === null;
 
     return {
       possibleCapitalPath: path,
@@ -395,7 +425,9 @@ export function findMissingInformation(extracted: ExtractedScenario): string[] {
   if (!pos(extracted.estimatedValue) && !pos(extracted.purchasePrice))
     missing.push(FIELD_LABELS.value);
   if (!hasLoanAsk(extracted)) missing.push(FIELD_LABELS.loanAmount);
-  if (isSecondPosition(extracted) && !pos(extracted.currentDebt))
+  // A 2nd needs the senior position quantified — but that can come from an
+  // existing first loan OR (for construction) land + construction invested.
+  if (isSecondPosition(extracted) && seniorAheadAmount(extracted) == null)
     missing.push(FIELD_LABELS.currentDebt);
   if (!extracted.lienPosition && !isSecondPosition(extracted))
     missing.push(FIELD_LABELS.lienPosition);
@@ -441,7 +473,8 @@ export function meetsMinimumInfo(extracted: ExtractedScenario): boolean {
   const hasLocation = !!extracted.propertyLocation || extracted.propertyState === "CA";
   const hasValue = pos(extracted.estimatedValue) || pos(extracted.purchasePrice);
   const hasLien = !!extracted.lienPosition || isSecondPosition(extracted);
-  const secondHasDebt = !isSecondPosition(extracted) || pos(extracted.currentDebt);
+  const secondHasDebt =
+    !isSecondPosition(extracted) || seniorAheadAmount(extracted) != null;
 
   return (
     hasLocation &&

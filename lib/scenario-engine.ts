@@ -14,6 +14,7 @@ import {
   isSecondPosition,
   meetsMinimumInfo,
   newMoneyAmount,
+  seniorAheadAmount,
 } from "./deal-calculator";
 import { computeComplianceFlags, scrubForbiddenLanguage } from "./compliance-rules";
 import { diffScenario, mergeScenario, normalizeScenario } from "./scenario-merger";
@@ -34,9 +35,14 @@ export function buildCalculated(extracted: ExtractedScenario): CalculatedScenari
     extracted.constructionBudget ??
     ((extracted.purchasePrice ?? 0) + (extracted.rehabBudget ?? 0) || null);
 
+  // The senior position ahead of the new money: an existing first loan, OR (for
+  // construction) the borrower's land + construction already invested. CLTV and
+  // total debt are measured against THIS, not just `currentDebt`.
+  const senior = seniorAheadAmount(extracted);
+
   const estimatedLTV = calculateLTV(effectiveLoan, valueBasis);
   const estimatedCLTV = calculateCLTV(
-    extracted.currentDebt,
+    senior,
     extracted.requestedCashOut,
     extracted.requestedLoanAmount,
     valueBasis,
@@ -62,6 +68,7 @@ export function buildCalculated(extracted: ExtractedScenario): CalculatedScenari
       estimatedCLTV: null,
       estimatedLTC: null,
       estimatedARVLTV: null,
+      seniorPositionAmount: null,
       totalDebtAfterLoan: null,
       equityRemaining: null,
       primaryMetric: { key: "CLTV", label: "Combined LTV (CLTV)", value: null },
@@ -80,11 +87,9 @@ export function buildCalculated(extracted: ExtractedScenario): CalculatedScenari
 
   const newMoney = newMoneyAmount(extracted);
   // Total debt does not depend on property value — compute it whenever there is
-  // any debt or new money (avoid the `|| null` falsy-coercion footgun).
+  // any senior position or new money (avoid the `|| null` falsy-coercion footgun).
   const totalDebtAfterLoan =
-    extracted.currentDebt != null || newMoney > 0
-      ? (extracted.currentDebt ?? 0) + newMoney
-      : null;
+    senior != null || newMoney > 0 ? (senior ?? 0) + newMoney : null;
   const equityRemaining =
     valueBasis != null && totalDebtAfterLoan != null
       ? Math.max(valueBasis - totalDebtAfterLoan, 0)
@@ -95,6 +100,7 @@ export function buildCalculated(extracted: ExtractedScenario): CalculatedScenari
     estimatedCLTV,
     estimatedLTC,
     estimatedARVLTV,
+    seniorPositionAmount: senior,
     totalDebtAfterLoan,
     equityRemaining,
     primaryMetric,
@@ -179,8 +185,24 @@ export function composeAssistantMessage(
   const known: string[] = [];
   if (extracted.estimatedValue != null)
     known.push(`an estimated value of approximately ${money(extracted.estimatedValue)}`);
-  if (extracted.currentDebt != null)
-    known.push(`an existing first loan of approximately ${money(extracted.currentDebt)}`);
+
+  const senior = seniorAheadAmount(extracted);
+  if (senior != null) {
+    if (extracted.currentDebt != null && extracted.currentDebt > 0) {
+      known.push(`an existing first loan of approximately ${money(senior)}`);
+    } else {
+      // Construction basis: land + construction invested make up the senior
+      // position the new money sits behind. Name the parts so the borrower can
+      // see their land and construction were both counted.
+      const pieces: string[] = [];
+      if (extracted.purchasePrice != null)
+        pieces.push(`${money(extracted.purchasePrice)} in land/purchase`);
+      if (extracted.rehabBudget != null)
+        pieces.push(`${money(extracted.rehabBudget)} in construction invested`);
+      const breakdown = pieces.length ? ` (${pieces.join(" + ")})` : "";
+      known.push(`a senior position of approximately ${money(senior)}${breakdown}`);
+    }
+  }
   if (known.length > 0) {
     parts.push(`You indicated ${known.join(" and ")}.`);
   }

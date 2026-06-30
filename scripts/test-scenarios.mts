@@ -257,5 +257,28 @@ console.log("\nCADeed scenario tests\n");
   check("inconsistent → Needs More Info", r2.calculated.scenarioStrength === "Needs More Info", r2.calculated.scenarioStrength);
 }
 
+// 11. Construction stack: land + construction invested = senior position.
+//     "Bought land 2.5M, spent 1.2M building, need 500k 2nd, value 6M" must
+//     combine land + construction into a $3.7M senior position => CLTV 70%
+//     (NOT 8.3%, 20%, 28.3%, or 50% — the bugs that dropped the construction).
+{
+  const r = analyze(
+    "I purchased the land for 2.5 million and spent 1.2 million on construction, mid construction, need another 500k on a second, value as is 6 million in Los Angeles",
+  );
+  console.log("Test 11 — construction stack (land + build = senior position)");
+  check("purchasePrice = 2,500,000", r.mergedScenario.purchasePrice === 2_500_000, `got ${r.mergedScenario.purchasePrice}`);
+  check("rehabBudget (construction invested) = 1,200,000", r.mergedScenario.rehabBudget === 1_200_000, `got ${r.mergedScenario.rehabBudget}`);
+  check("currentDebt stays null (no lender first loan)", r.mergedScenario.currentDebt === null, `got ${r.mergedScenario.currentDebt}`);
+  check("requestedLoanAmount = 500,000", r.mergedScenario.requestedLoanAmount === 500_000, `got ${r.mergedScenario.requestedLoanAmount}`);
+  check("seniorPositionAmount = 3,700,000 (land + construction)", r.calculated.seniorPositionAmount === 3_700_000, `got ${r.calculated.seniorPositionAmount}`);
+  check("CLTV = 70 (not 8.3 / 20 / 28.3 / 50)", r.calculated.estimatedCLTV === 70, `got ${r.calculated.estimatedCLTV}`);
+  check("primary metric is CLTV", r.calculated.primaryMetric.key === "CLTV", `got ${r.calculated.primaryMetric.key}`);
+  check("new-money LTV = 8.3", r.calculated.estimatedLTV === 8.3, `got ${r.calculated.estimatedLTV}`);
+  check("totalDebtAfterLoan = 4,200,000", r.calculated.totalDebtAfterLoan === 4_200_000, `got ${r.calculated.totalDebtAfterLoan}`);
+  check("equityRemaining = 1,800,000", r.calculated.equityRemaining === 1_800_000, `got ${r.calculated.equityRemaining}`);
+  check("does NOT ask for existing first loan balance", !r.missingInformation.some((m) => /existing first loan/i.test(m)), r.missingInformation.join(", "));
+  check("path mentions Construction Completion", /Construction Completion/i.test(r.calculated.possibleCapitalPath), r.calculated.possibleCapitalPath);
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);

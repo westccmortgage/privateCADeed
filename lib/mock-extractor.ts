@@ -138,7 +138,7 @@ export function mockExtract(
 
   const purchasePrice = amountNear(
     text,
-    /(buy|buying|purchase|purchasing|acquire|acquiring|under contract (?:for|at)|contract price)/,
+    /(buy|buying|bought|purchase|purchasing|purchased|acquire|acquiring|land for|lot for|under contract (?:for|at)|contract price)/,
     "after",
   );
 
@@ -155,11 +155,20 @@ export function mockExtract(
     "before",
   );
 
-  const rehabBudget = amountNear(
+  // Rehab / construction money the borrower has already put in (their basis).
+  // "spent $X / invested $X" puts the amount AFTER the keyword; "$X rehab /
+  // $X construction costs" puts it BEFORE. Check both and prefer the spent form.
+  const rehabSpent = amountNear(
     text,
-    /(rehab|renovation|repairs?|reno|construction budget|budget of)/,
+    /(spent|already invested|invested|put into (?:the )?(?:build|construction|project)|sunk into)/,
+    "after",
+  );
+  const rehabCost = amountNear(
+    text,
+    /(rehab|renovation|repairs?|reno|construction budget|budget of|construction costs?|cost of construction|on (?:the )?construction)/,
     "before",
   );
+  const rehabBudget = rehabSpent ?? rehabCost;
 
   // Only treat as a remaining construction budget with explicit budget phrasing.
   const constructionBudget = amountNear(

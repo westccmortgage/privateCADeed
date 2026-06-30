@@ -6,11 +6,15 @@ import type { ChatTurn, ExtractedScenario } from "./types";
 // the math. All numbers are computed deterministically in lib/deal-calculator.
 
 const GLOSSARY = `Private-capital / hard-money vocabulary you must understand (including typos):
-- Existing senior debt (currentDebt): "first loan", "1st", "first lien", "current first", "existing first", "senior debt", "senior loan", "payoff", "first mortgage", common typos like "firs loan".
+- Existing senior debt (currentDebt): an OUTSTANDING LOAN BALANCE OWED TO A LENDER in first position — "first loan", "1st", "first lien", "current first", "existing first", "senior debt", "senior loan", "payoff", "first mortgage", common typos like "firs loan". NEVER put a purchase/land price or construction costs here.
+- purchasePrice: the acquisition / land / lot cost — "purchase price", "bought the land for", "paid for the lot", "acquired for".
+- rehabBudget: rehab OR construction money the borrower has ALREADY PUT IN (their own basis) — "construction cost(s)", "spent on construction", "spent so far", "already invested", "put into the build", "sunk", "rehab budget". This is money already in the project, NOT a lender loan.
+- constructionBudget: the REMAINING cost to COMPLETE the project that new financing would fund — "need X to finish", "cost to complete", "remaining budget", "left to finish". (If the borrower is requesting this exact amount, also set requestedLoanAmount.)
+- IMPORTANT construction rule: when a borrower describes their "first position" as land PLUS construction spent (their own basis, with no separate lender loan), put the land in purchasePrice and the construction spent in rehabBudget, and leave currentDebt null. The calculator combines land + construction into the senior position — do NOT pre-sum them and do NOT cram them into currentDebt.
 - Lien position: "second position", "2nd", "second deed", "junior lien", "2nd deed of trust" => "2nd". "new 1st", "first position", "refinance the first" => "1st".
 - Purpose: "mid construction" / "mid-construction" / "construction completion" / "completion capital" => construction completion. "cashout" / "cash-out" / "refi" / "refinance" => cash-out refinance. "fix and flip" / "flip" / "bridge" => fix & flip / bridge.
-- Money formats: "value is 6 mil"=6000000, "3mil"/"3 mil"/"3M"/"$3,000,000"=3000000, "need 500k"/"$500K"=500000, "1.2M"=1200000.
-- projectStatus: construction stage, e.g. "mid-construction", "framing", "finishing", "stalled", "50% complete".
+- Money formats incl. SPOKEN numbers: "value is 6 mil"=6000000, "six million"=6000000, "3mil"/"3 mil"/"3M"/"$3,000,000"=3000000, "need 500k"/"$500K"/"five hundred thousand"=500000, "1.2M"/"a million two hundred thousand"/"one point two million"=1200000, "2.5 million"/"two and a half million"=2500000.
+- projectStatus: construction stage, e.g. "mid-construction", "framing", "finishing", "stalled", "50% complete", "70% done".
 - borrowerRole: "borrower", "broker" ("my client"), or "investor".`;
 
 const SYSTEM_PROMPT = `You are the extraction layer of CADeed, a California private capital engine.
@@ -21,7 +25,9 @@ ${GLOSSARY}
 Rules:
 - Extract only what is stated or strongly implied. Use null when unknown. Never guess hard numbers.
 - Money values must be plain integers in US dollars (e.g. "$1.2M" -> 1200000, "300K" -> 300000, "3 mil" -> 3000000).
-- currentDebt is the EXISTING first/senior loan balance, NOT the new requested loan.
+- currentDebt is ONLY an existing first/senior LOAN BALANCE owed to a lender — NOT the new requested loan, NOT the purchase/land price, NOT construction costs.
+- purchasePrice = land/acquisition cost. rehabBudget = rehab/construction money already spent or invested by the borrower. constructionBudget = remaining cost to complete.
+- For a construction deal, keep the land in purchasePrice and the construction-spent in rehabBudget as SEPARATE values; never add them together and never move them into currentDebt.
 - requestedLoanAmount is the NEW money being requested.
 - Do NOT calculate LTV, CLTV, leverage, capital paths, or any derived numbers. A separate deterministic calculator handles all math.
 - propertyState must be "CA" only when the property is in California, otherwise null.

@@ -119,6 +119,15 @@ export default function ScenarioResult({
         ? "1st position"
         : "—";
 
+  // Senior position ahead of the new money: an existing first loan, OR (for
+  // construction) the land + construction already invested, which the engine
+  // combines. Label it accordingly so the figure is never a mystery.
+  const seniorAmount = scenario.currentDebt ?? calculated.seniorPositionAmount;
+  const seniorLabel =
+    scenario.currentDebt == null && calculated.seniorPositionAmount != null
+      ? "Senior Position"
+      : "Existing First Loan";
+
   const risksToShow = showAllRisks
     ? calculated.riskNotes
     : calculated.riskNotes.slice(0, 2);
@@ -181,7 +190,7 @@ export default function ScenarioResult({
                 </p>
                 <p className="text-[13px] text-navy-muted">
                   {pm.key === "CLTV"
-                    ? "Existing first loan + requested new loan ÷ value"
+                    ? "Senior position + requested new loan ÷ value"
                     : pm.key === "LTC"
                       ? "Requested loan ÷ total project cost"
                       : pm.key === "ARV-LTV"
@@ -209,8 +218,8 @@ export default function ScenarioResult({
             />
             <Stat
               icon={<Wallet size={15} />}
-              label="Existing First Loan"
-              value={formatMoney(scenario.currentDebt)}
+              label={seniorLabel}
+              value={formatMoney(seniorAmount)}
             />
             <Stat
               icon={<HandCoins size={15} />}
@@ -223,6 +232,20 @@ export default function ScenarioResult({
               label="Loan Purpose"
               value={scenario.loanPurpose ?? "—"}
             />
+            {scenario.purchasePrice != null && (
+              <Stat
+                icon={<Building2 size={15} />}
+                label="Purchase / Land"
+                value={formatMoney(scenario.purchasePrice)}
+              />
+            )}
+            {scenario.rehabBudget != null && (
+              <Stat
+                icon={<HandCoins size={15} />}
+                label="Construction / Rehab Invested"
+                value={formatMoney(scenario.rehabBudget)}
+              />
+            )}
             <Stat
               icon={<TrendingUp size={15} />}
               label="New-Money LTV"
