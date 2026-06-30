@@ -280,5 +280,49 @@ console.log("\nCADeed scenario tests\n");
   check("path mentions Construction Completion", /Construction Completion/i.test(r.calculated.possibleCapitalPath), r.calculated.possibleCapitalPath);
 }
 
+// 12. Conventional referral router — don't lose borrowers private can't serve.
+{
+  console.log("Test 12 — conventional referral router");
+
+  // (a) 90% CLTV 2nd → recommend conventional (leverage above private ceiling).
+  const high = buildChatResponse(EMPTY_SCENARIO, {
+    propertyState: "CA", estimatedValue: 1_000_000, currentDebt: 800_000,
+    requestedLoanAmount: 100_000, lienPosition: "2nd", loanPurpose: "Cash-out",
+    occupancy: "Investment", businessPurpose: "Business",
+  });
+  check("90% CLTV => referral recommended", high.calculated.conventionalReferral.recommended === true, JSON.stringify(high.calculated.conventionalReferral.reasons));
+  check("referral names West Coast Capital Mortgage", /West Coast Capital Mortgage/i.test(high.calculated.conventionalReferral.message), high.calculated.conventionalReferral.message);
+  check("referral stays compliant (no 'approved'/'you qualify')", !/\bapproved\b|\byou qualify\b/i.test(high.calculated.conventionalReferral.message), high.calculated.conventionalReferral.message);
+
+  // (b) Owner-occupied at LOW leverage → still recommend conventional.
+  const oo = buildChatResponse(EMPTY_SCENARIO, {
+    propertyState: "CA", estimatedValue: 1_000_000, currentDebt: 300_000,
+    requestedLoanAmount: 100_000, lienPosition: "2nd", loanPurpose: "Cash-out",
+    occupancy: "Owner-occupied",
+  });
+  check("owner-occupied => referral recommended", oo.calculated.conventionalReferral.recommended === true, JSON.stringify(oo.calculated.conventionalReferral.reasons));
+
+  // (c) HELOC request → recommend conventional.
+  const heloc = buildChatResponse(EMPTY_SCENARIO, {
+    propertyState: "CA", estimatedValue: 1_000_000, currentDebt: 300_000,
+    requestedLoanAmount: 100_000, lienPosition: "2nd", loanPurpose: "HELOC / home equity line",
+    occupancy: "Investment", businessPurpose: "Business",
+  });
+  check("HELOC => referral recommended", heloc.calculated.conventionalReferral.recommended === true, JSON.stringify(heloc.calculated.conventionalReferral.reasons));
+
+  // (d) Strong 55% investment 2nd → NO referral (private fits).
+  const strong = buildChatResponse(EMPTY_SCENARIO, {
+    propertyState: "CA", estimatedValue: 1_000_000, currentDebt: 450_000,
+    requestedLoanAmount: 100_000, lienPosition: "2nd", loanPurpose: "Cash-out",
+    occupancy: "Investment", businessPurpose: "Business",
+  });
+  check("strong 55% investment 2nd => NO referral", strong.calculated.conventionalReferral.recommended === false, JSON.stringify(strong.calculated.conventionalReferral.reasons));
+
+  // (e) HELOC is detected from plain-English by the mock extractor.
+  const helocText = analyze("I want a HELOC on my Irvine home worth 1.2M, I owe 400k");
+  check('mock extractor tags loanPurpose "HELOC"', /heloc/i.test(helocText.mergedScenario.loanPurpose ?? ""), helocText.mergedScenario.loanPurpose ?? "null");
+  check("HELOC text => referral recommended", helocText.calculated.conventionalReferral.recommended === true, JSON.stringify(helocText.calculated.conventionalReferral.reasons));
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);

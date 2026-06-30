@@ -5,6 +5,7 @@ import {
   calculateLTV,
   deriveLenderMatchCriteria,
   determineCapitalPath,
+  determineConventionalReferral,
   determinePrimaryMetric,
   findMissingInformation,
   getNextBestQuestion,
@@ -79,11 +80,19 @@ export function buildCalculated(extracted: ExtractedScenario): CalculatedScenari
       riskNotes: [
         "The property value and the requested amount don't look consistent — please re-check them.",
       ],
+      conventionalReferral: { recommended: false, reasons: [], headline: "", message: "" },
     };
   }
 
   const path = determineCapitalPath(extracted, parts);
   const primaryMetric = determinePrimaryMetric(extracted, parts);
+  // Capital-fit router: if private capital can't serve this, route to the
+  // conventional/agency channel instead of dead-ending the borrower.
+  const conventionalReferral = determineConventionalReferral(extracted, {
+    scenarioStrength: path.scenarioStrength,
+    estimatedLTV,
+    estimatedCLTV,
+  });
 
   const newMoney = newMoneyAmount(extracted);
   // Total debt does not depend on property value — compute it whenever there is
@@ -108,6 +117,7 @@ export function buildCalculated(extracted: ExtractedScenario): CalculatedScenari
     capitalPathDescription: scrubForbiddenLanguage(path.capitalPathDescription),
     scenarioStrength: path.scenarioStrength,
     riskNotes: path.riskNotes.map(scrubForbiddenLanguage),
+    conventionalReferral,
   };
 }
 

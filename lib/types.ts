@@ -41,6 +41,18 @@ export interface PrimaryMetric {
   value: number | null;
 }
 
+/**
+ * When a scenario fits conventional / agency financing better than private
+ * capital, we don't dead-end the borrower — we route them to a licensed loan
+ * officer at the conventional channel (West Coast Capital Mortgage).
+ */
+export interface ConventionalReferral {
+  recommended: boolean;
+  reasons: string[];
+  headline: string;
+  message: string;
+}
+
 /** Deterministic outputs — produced only by lib/deal-calculator.ts. */
 export interface CalculatedScenario {
   estimatedLTV: number | null; // new-money LTV
@@ -55,6 +67,7 @@ export interface CalculatedScenario {
   capitalPathDescription: string;
   scenarioStrength: ScenarioStrength;
   riskNotes: string[];
+  conventionalReferral: ConventionalReferral;
 }
 
 /** Flags surfaced for compliance handling and GRCRM routing. */

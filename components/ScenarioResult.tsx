@@ -24,6 +24,7 @@ import type {
   ScenarioStrength,
 } from "@/lib/types";
 import { OWNER_OCCUPIED_CAUTION } from "@/lib/compliance-rules";
+import ConventionalReferralCard from "@/components/ConventionalReferralCard";
 
 interface ScenarioResultProps {
   scenario: ExtractedScenario;
@@ -320,6 +321,16 @@ export default function ScenarioResult({
               {calculated.scenarioStrength}
             </span>
           </motion.div>
+
+          {/* Conventional / agency referral — route, don't dead-end */}
+          {calculated.conventionalReferral?.recommended && (
+            <motion.div variants={item}>
+              <ConventionalReferralCard
+                referral={calculated.conventionalReferral}
+                scenario={scenario}
+              />
+            </motion.div>
+          )}
 
           {/* Restructure options */}
           {restructureOptions.length > 0 && (

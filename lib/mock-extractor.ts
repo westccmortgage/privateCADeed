@@ -199,6 +199,7 @@ export function mockExtract(
     /(construction|mid[\s-]?construction|completion capital|construction completion|finish (?:a|the|my|this) (?:project|build|construction|home|house)|complete (?:a|the|my|this) (?:project|build|construction)|stalled (?:project|build)|finish building)/i.test(
       text,
     );
+  const isHeloc = /\bheloc\b|home[\s-]?equity line|equity line of credit/i.test(text);
   const isCashOut =
     !!requestedCashOut || /(cash[\s-]?out|refi|refinance|pull (?:cash|equity)|tap equity)/i.test(text);
 
@@ -214,6 +215,7 @@ export function mockExtract(
   let loanPurpose: string | null = null;
   if (isConstruction) loanPurpose = "Construction completion";
   else if (isFlip) loanPurpose = "Fix & flip / bridge";
+  else if (isHeloc) loanPurpose = "HELOC / home equity line";
   else if (isCashOut) loanPurpose = "Cash-out refinance";
   else if (purchasePrice) loanPurpose = "Purchase";
 

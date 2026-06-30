@@ -7,8 +7,11 @@ import {
   LEVERAGE_GUIDELINES,
   gradeLeverage,
 } from "./private-capital-guidelines";
+import { COMPANY } from "./company";
+import { scrubForbiddenLanguage } from "./compliance-rules";
 import type {
   CalculatedScenario,
+  ConventionalReferral,
   ExtractedScenario,
   LenderMatchCriteria,
   PrimaryMetric,
@@ -345,6 +348,78 @@ export function determineCapitalPath(
       "likely options.",
     scenarioStrength: "Needs More Info",
     riskNotes,
+  };
+}
+
+// --- conventional / agency referral router ----------------------------------
+
+/** A HELOC / home-equity line is a conventional product, not private capital. */
+export function isHelocRequest(extracted: ExtractedScenario): boolean {
+  return /heloc|home equity line|equity line of credit|home-equity line/i.test(
+    `${extracted.loanPurpose ?? ""}`,
+  );
+}
+
+interface ReferralParts {
+  scenarioStrength: ScenarioStrength;
+  estimatedLTV: number | null;
+  estimatedCLTV: number | null;
+}
+
+// When leverage against value reaches this, it's conventional/agency territory.
+const HIGH_REQUEST_PCT = 80;
+
+/**
+ * Decide whether to route the borrower to the conventional/agency channel
+ * (West Coast Capital Mortgage) instead of dead-ending an over-leverage or
+ * consumer scenario. Private capital is conservative (≈≤65% CLTV on a 2nd,
+ * ≈70% LTV on a 1st); conventional can often reach higher LTV, do HELOCs, and
+ * serve owner-occupied/consumer borrowers. We never lose the lead.
+ */
+export function determineConventionalReferral(
+  extracted: ExtractedScenario,
+  parts: ReferralParts,
+): ConventionalReferral {
+  const reasons: string[] = [];
+
+  if (parts.scenarioStrength === "Needs Restructure") {
+    reasons.push(
+      "Combined leverage is above the typical private-capital range — conventional or agency programs often allow a higher loan-to-value.",
+    );
+  }
+
+  const occ = (extracted.occupancy ?? "").toLowerCase();
+  const ownerOccupied = /owner|primary|occupied|residence/.test(occ);
+  const consumer = /consumer|personal/.test((extracted.businessPurpose ?? "").toLowerCase());
+  if (ownerOccupied || consumer) {
+    reasons.push(
+      "Owner-occupied / consumer-purpose financing is usually better served through conventional options than private capital.",
+    );
+  }
+
+  if (isHelocRequest(extracted)) {
+    reasons.push(
+      "A HELOC / home-equity line of credit is a conventional product rather than private capital.",
+    );
+  }
+
+  const valueLeverage = Math.max(parts.estimatedCLTV ?? 0, parts.estimatedLTV ?? 0);
+  if (valueLeverage >= HIGH_REQUEST_PCT) {
+    reasons.push(
+      `The requested amount is a high share of value (~${valueLeverage}%) — conventional / agency financing typically reaches a higher loan-to-value than private capital.`,
+    );
+  }
+
+  const recommended = reasons.length > 0;
+  return {
+    recommended,
+    reasons: reasons.map(scrubForbiddenLanguage),
+    headline: recommended ? "A conventional loan option may fit better" : "",
+    message: recommended
+      ? scrubForbiddenLanguage(
+          `Private capital is conservative on leverage, so this scenario may be a better fit for a conventional or agency loan. A licensed loan officer at ${COMPANY.legalName} (NMLS #${COMPANY.nmls}) can review options such as a conventional refinance, a HELOC, or higher loan-to-value programs. This is not an offer or a commitment to lend — a licensed professional will review your situation.`,
+        )
+      : "",
   };
 }
 
