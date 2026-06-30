@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { buildScenarioPayload, sendScenarioToGRCRM } from "@/lib/grcrm-client";
+import {
+  buildScenarioPayload,
+  formatScenarioSummary,
+  sendLeadToGRCRM,
+} from "@/lib/grcrm-client";
 import { sendNotificationEmail } from "@/lib/notify";
 import { consentSatisfied } from "@/lib/compliance-rules";
 import { normalizeScenario } from "@/lib/scenario-merger";
@@ -71,11 +75,24 @@ export async function POST(request: Request) {
     timestamp: new Date().toISOString(),
   });
 
-  const result = await sendScenarioToGRCRM(payload);
-
-  // Email safety-net so a lead is never lost before GRCRM is wired up.
   const lm = payload.lenderMatchCriteria;
   const c = payload.userContact;
+
+  // Forward to GRCRM as a clean lead (name/email/phone + full scenario in message).
+  const result = await sendLeadToGRCRM({
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    message: [
+      `CADeed scenario — ${payload.recommendedCapitalPath} (${calculated.scenarioStrength})`,
+      ``,
+      formatScenarioSummary(extracted, calculated),
+      `Role: ${c.role ?? "—"} · Compliance flags: ${payload.complianceFlags.join(", ") || "none"}`,
+      payload.rawUserInput ? `\nRaw: ${payload.rawUserInput}` : "",
+    ].join("\n"),
+  });
+
+  // Email safety-net so a lead is never lost before GRCRM is wired up.
   const emailResult = await sendNotificationEmail(
     `New CADeed scenario — ${payload.recommendedCapitalPath} (${payload.scenarioId})`,
     [

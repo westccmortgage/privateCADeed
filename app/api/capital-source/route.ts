@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  buildCapitalSourcePayload,
-  sendCapitalSourceToGRCRM,
-} from "@/lib/grcrm-client";
+import { buildCapitalSourcePayload, sendLeadToGRCRM } from "@/lib/grcrm-client";
 import { sendNotificationEmail } from "@/lib/notify";
 import type { CapitalSourceProfile } from "@/lib/types";
 
@@ -63,24 +60,33 @@ export async function POST(request: Request) {
   };
 
   const payload = buildCapitalSourcePayload(profile, new Date().toISOString());
-  const result = await sendCapitalSourceToGRCRM(payload);
+
+  const summary = [
+    `New capital-source lending box from CADeed.com`,
+    ``,
+    `Company: ${profile.companyName}`,
+    `Contact: ${profile.contactPerson || "—"} · ${profile.email} · ${profile.phone || "—"}`,
+    `States: ${profile.states.join(", ") || "—"} · Counties: ${profile.counties || "—"}`,
+    `Lien: ${profile.lienPositions || "—"} · Max LTV: ${profile.maxLTV ?? "—"} · Max CLTV: ${profile.maxCLTV ?? "—"}`,
+    `Loan range: ${profile.minLoanAmount ?? "—"} – ${profile.maxLoanAmount ?? "—"}`,
+    `Property types: ${profile.propertyTypes.join(", ") || "—"}`,
+    `Programs: ${profile.programs.join(", ") || "—"}`,
+    `Owner-occupied allowed: ${profile.ownerOccupiedAllowed ?? "—"} · Business-purpose only: ${profile.businessPurposeOnly ?? "—"}`,
+    `Response time: ${profile.expectedResponseTime ?? "—"}`,
+    `Notes: ${profile.notes || "—"}`,
+  ].join("\n");
+
+  // Forward to GRCRM as a clean lead (company as the name).
+  const result = await sendLeadToGRCRM({
+    name: profile.companyName,
+    email: profile.email,
+    phone: profile.phone,
+    message: `[CAPITAL SOURCE]\n${summary}`,
+  });
 
   const emailResult = await sendNotificationEmail(
     `New CADeed capital-source profile — ${profile.companyName} (${payload.profileId})`,
-    [
-      `New capital-source lending box from CADeed.com`,
-      ``,
-      `Company: ${profile.companyName}`,
-      `Contact: ${profile.contactPerson || "—"} · ${profile.email} · ${profile.phone || "—"}`,
-      `States: ${profile.states.join(", ") || "—"} · Counties: ${profile.counties || "—"}`,
-      `Lien: ${profile.lienPositions || "—"} · Max LTV: ${profile.maxLTV ?? "—"} · Max CLTV: ${profile.maxCLTV ?? "—"}`,
-      `Loan range: ${profile.minLoanAmount ?? "—"} – ${profile.maxLoanAmount ?? "—"}`,
-      `Property types: ${profile.propertyTypes.join(", ") || "—"}`,
-      `Programs: ${profile.programs.join(", ") || "—"}`,
-      `Owner-occupied allowed: ${profile.ownerOccupiedAllowed ?? "—"} · Business-purpose only: ${profile.businessPurposeOnly ?? "—"}`,
-      `Response time: ${profile.expectedResponseTime ?? "—"}`,
-      `Notes: ${profile.notes || "—"}`,
-    ].join("\n"),
+    summary,
   );
 
   return NextResponse.json(

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { sendNotificationEmail } from "@/lib/notify";
-import { buildScenarioPayload, sendScenarioToGRCRM } from "@/lib/grcrm-client";
+import {
+  buildScenarioPayload,
+  formatScenarioSummary,
+  sendLeadToGRCRM,
+} from "@/lib/grcrm-client";
 import { consentSatisfied } from "@/lib/compliance-rules";
 import { normalizeScenario } from "@/lib/scenario-merger";
 import { buildCalculated } from "@/lib/scenario-engine";
@@ -59,8 +63,8 @@ export async function POST(request: Request) {
       ? body.reasons
       : calculated.conventionalReferral.reasons;
 
-  // GRCRM (best-effort), tagged as a conventional referral so it routes to the
-  // conventional channel rather than private capital sources.
+  // GRCRM (best-effort) as a clean lead, tagged so it routes to the conventional
+  // channel rather than private capital sources.
   const missingInformation = findMissingInformation(extracted);
   const payload = buildScenarioPayload({
     rawUserInput: "",
@@ -73,9 +77,19 @@ export async function POST(request: Request) {
     userContact: { name, email, phone, role: "Borrower" },
     timestamp: new Date().toISOString(),
   });
-  payload.recommendedCapitalPath = "Conventional Referral — West Coast Capital Mortgage";
-  payload.complianceFlags = [...payload.complianceFlags, "CONVENTIONAL_REFERRAL"];
-  const grcrm = await sendScenarioToGRCRM(payload);
+  const grcrm = await sendLeadToGRCRM({
+    name,
+    email,
+    phone,
+    message: [
+      `CONVENTIONAL REFERRAL — route to West Coast Capital Mortgage`,
+      ``,
+      formatScenarioSummary(extracted, calculated),
+      ``,
+      `Why conventional may fit better:`,
+      ...(reasons.length ? reasons.map((r) => `- ${r}`) : ["- (not specified)"]),
+    ].join("\n"),
+  });
 
   // Email safety-net so the referral lead is never lost.
   const emailResult = await sendNotificationEmail(

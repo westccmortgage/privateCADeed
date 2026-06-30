@@ -158,3 +158,74 @@ export function sendCapitalSourceToGRCRM(
 ): Promise<GRCRMResult> {
   return postToGRCRM(payload);
 }
+
+// --- simple lead forwarding (GRCRM lead-inbound contract) -------------------
+//
+// GRCRM's lead-inbound webhook expects a SIMPLE shape: { name, email, phone,
+// message }. We forward leads server-side in exactly that shape (token is in
+// the URL), so name/email/phone always land in the right fields and the full
+// scenario rides along in `message`. More reliable than a client-side snippet
+// (no JS/adblock dependence) and it respects the consent gates in our routes.
+
+export interface LeadInput {
+  name?: string;
+  email?: string;
+  phone?: string;
+  message: string;
+}
+
+/** Human-readable scenario summary for the lead's free-text `message`. */
+export function formatScenarioSummary(
+  extracted: ExtractedScenario,
+  calculated: CalculatedScenario,
+): string {
+  const senior = calculated.seniorPositionAmount ?? extracted.currentDebt;
+  const requested =
+    extracted.requestedLoanAmount ??
+    extracted.requestedCashOut ??
+    extracted.constructionBudget;
+  return [
+    `Location: ${extracted.propertyLocation ?? extracted.propertyState ?? "—"}`,
+    `Value: ${extracted.estimatedValue ?? "—"} · Senior position: ${senior ?? "—"} · Requested: ${requested ?? "—"}`,
+    `Lien: ${extracted.lienPosition ?? "—"} · Purpose: ${extracted.loanPurpose ?? "—"} · Occupancy: ${extracted.occupancy ?? "—"} · Business purpose: ${extracted.businessPurpose ?? "—"}`,
+    `CLTV: ${calculated.estimatedCLTV ?? "—"}% · LTV: ${calculated.estimatedLTV ?? "—"}% · Path: ${calculated.possibleCapitalPath} (${calculated.scenarioStrength})`,
+    `Exit: ${extracted.exitStrategy ?? "—"} · Timeline: ${extracted.closingTimeline ?? "—"}`,
+  ].join("\n");
+}
+
+/**
+ * Forward a simple lead to GRCRM's lead-inbound webhook. Reads
+ * GRCRM_LEAD_WEBHOOK_URL (falling back to GRCRM_WEBHOOK_URL). Best-effort:
+ * logs and no-ops when neither is configured, so the app keeps working.
+ */
+export async function sendLeadToGRCRM(lead: LeadInput): Promise<GRCRMResult> {
+  const url = process.env.GRCRM_LEAD_WEBHOOK_URL || process.env.GRCRM_WEBHOOK_URL;
+  if (!url) {
+    console.log(`[grcrm] lead webhook not set. Lead: ${lead.name ?? "—"} / ${lead.email ?? "—"}`);
+    return { configured: false, sent: false, message: NOT_CONFIGURED_MESSAGE };
+  }
+  const body = JSON.stringify({
+    name: lead.name ?? "",
+    email: lead.email ?? "",
+    phone: lead.phone ?? "",
+    message: lead.message,
+  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CADeed-Source": "CADeed.com" },
+      body,
+    });
+    return res.ok
+      ? { configured: true, sent: true, status: res.status, message: "Lead sent to GRCRM." }
+      : {
+          configured: true,
+          sent: false,
+          status: res.status,
+          message: "Lead saved; GRCRM will be retried.",
+        };
+  } catch (err) {
+    console.error("[grcrm] lead webhook error:", err);
+    return { configured: true, sent: false, message: "Lead saved; GRCRM will be retried." };
+  }
+}

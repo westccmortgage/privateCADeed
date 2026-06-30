@@ -17,7 +17,7 @@ import {
   computeComplianceFlags,
   consentSatisfied,
 } from "../lib/compliance-rules";
-import { sendScenarioToGRCRM } from "../lib/grcrm-client";
+import { sendScenarioToGRCRM, sendLeadToGRCRM, formatScenarioSummary } from "../lib/grcrm-client";
 import { EMPTY_SCENARIO, type ExtractedScenario } from "../lib/types";
 
 let passed = 0;
@@ -322,6 +322,30 @@ console.log("\nCADeed scenario tests\n");
   const helocText = analyze("I want a HELOC on my Irvine home worth 1.2M, I owe 400k");
   check('mock extractor tags loanPurpose "HELOC"', /heloc/i.test(helocText.mergedScenario.loanPurpose ?? ""), helocText.mergedScenario.loanPurpose ?? "null");
   check("HELOC text => referral recommended", helocText.calculated.conventionalReferral.recommended === true, JSON.stringify(helocText.calculated.conventionalReferral.reasons));
+}
+
+// 13. GRCRM lead forwarding — simple shape, graceful when unset.
+{
+  console.log("Test 13 — GRCRM lead forwarding");
+  const prevLead = process.env.GRCRM_LEAD_WEBHOOK_URL;
+  const prevUrl = process.env.GRCRM_WEBHOOK_URL;
+  delete process.env.GRCRM_LEAD_WEBHOOK_URL;
+  delete process.env.GRCRM_WEBHOOK_URL;
+
+  const r = await sendLeadToGRCRM({ name: "Jane", email: "j@x.com", message: "test" });
+  check("lead webhook unset => configured=false, not sent", r.configured === false && r.sent === false, JSON.stringify(r));
+
+  const summary = formatScenarioSummary(
+    { ...EMPTY_SCENARIO, propertyState: "CA", estimatedValue: 1_000_000, currentDebt: 400_000 },
+    buildChatResponse(
+      { ...EMPTY_SCENARIO, propertyState: "CA", estimatedValue: 1_000_000, currentDebt: 400_000, requestedLoanAmount: 100_000, lienPosition: "2nd" },
+      {},
+    ).calculated,
+  );
+  check("scenario summary includes CLTV + path", /CLTV:/.test(summary) && /Path:/.test(summary), summary);
+
+  if (prevLead !== undefined) process.env.GRCRM_LEAD_WEBHOOK_URL = prevLead;
+  if (prevUrl !== undefined) process.env.GRCRM_WEBHOOK_URL = prevUrl;
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`);

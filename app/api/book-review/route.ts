@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendNotificationEmail } from "@/lib/notify";
+import { sendLeadToGRCRM } from "@/lib/grcrm-client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,24 +32,28 @@ export async function POST(request: Request) {
     );
   }
 
+  const leadBody = [
+    `New "Book a deal review" request from CADeed.com`,
+    ``,
+    `Name:  ${name}`,
+    `Email: ${email}`,
+    `Phone: ${phone || "—"}`,
+    ``,
+    `Message:`,
+    message || "(none)",
+  ].join("\n");
+
+  const grcrm = await sendLeadToGRCRM({ name, email, phone, message: leadBody });
   const result = await sendNotificationEmail(
     `New deal-review request — ${name}`,
-    [
-      `New "Book a deal review" request from CADeed.com`,
-      ``,
-      `Name:  ${name}`,
-      `Email: ${email}`,
-      `Phone: ${phone || "—"}`,
-      ``,
-      `Message:`,
-      message || "(none)",
-    ].join("\n"),
+    leadBody,
     email, // reply-to → answer the lead directly
   );
 
   return NextResponse.json(
     {
       ok: true,
+      forwarded: grcrm.sent,
       emailed: result.sent,
       message: "Thanks — we received your request and will reach out shortly.",
     },
