@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp, Mic, ChevronDown, Sparkles, Square, MicOff } from "lucide-react";
-import { DEAL_EXAMPLES, HERO_EXAMPLE, HERO_PLACEHOLDER } from "@/lib/examples";
+import { DEAL_EXAMPLES, HERO_PLACEHOLDER } from "@/lib/examples";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 interface DealCommandBoxProps {
   value: string;
@@ -59,6 +60,7 @@ export default function DealCommandBox({
   placeholder,
   showExampleHint = true,
 }: DealCommandBoxProps) {
+  const { t } = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const [micStatus, setMicStatus] = useState<MicStatus>("idle");
 
@@ -282,7 +284,7 @@ export default function DealCommandBox({
 
           {!value && showExampleHint && (
             <p className="mt-1 select-none text-[13px] italic text-navy-muted/70">
-              {HERO_EXAMPLE}
+              {t.commandBox.exampleHint}
             </p>
           )}
 
@@ -295,7 +297,7 @@ export default function DealCommandBox({
                 className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3 py-2 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
               >
                 <Sparkles size={15} className="text-gold" />
-                Try an example
+                {t.commandBox.tryExample}
                 <ChevronDown
                   size={15}
                   className={`transition-transform ${menuOpen ? "rotate-180" : ""}`}
@@ -311,9 +313,9 @@ export default function DealCommandBox({
                     transition={{ duration: 0.16 }}
                     className="absolute bottom-full left-0 z-20 mb-2 w-[min(92vw,420px)] overflow-hidden rounded-2xl border border-hairline bg-white/95 shadow-lift backdrop-blur"
                   >
-                    {DEAL_EXAMPLES.map((ex) => (
+                    {DEAL_EXAMPLES.map((ex, i) => (
                       <button
-                        key={ex.label}
+                        key={ex.text}
                         type="button"
                         onClick={() => {
                           onChange(ex.text);
@@ -323,7 +325,7 @@ export default function DealCommandBox({
                         className="flex w-full flex-col items-start gap-0.5 border-b border-hairline/70 px-4 py-3 text-left last:border-0 hover:bg-canvas"
                       >
                         <span className="text-[13px] font-semibold text-navy">
-                          {ex.label}
+                          {t.commandBox.exampleLabels[i] ?? ex.label}
                         </span>
                         <span className="text-[12.5px] leading-snug text-navy-muted">
                           {ex.text}
@@ -341,7 +343,7 @@ export default function DealCommandBox({
                 <button
                   type="button"
                   onClick={toggleDictation}
-                  aria-label={listening ? "Stop dictation" : "Dictate your deal"}
+                  aria-label={listening ? t.commandBox.ariaStop : t.commandBox.ariaDictate}
                   aria-pressed={listening}
                   className={`relative flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${
                     listening
@@ -368,7 +370,7 @@ export default function DealCommandBox({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                aria-label="Analyze deal"
+                aria-label={t.commandBox.ariaSubmit}
                 className={`flex h-11 w-11 items-center justify-center rounded-full text-white transition-all ${
                   canSubmit
                     ? "bg-navy shadow-soft hover:-translate-y-0.5 hover:bg-navy-soft"
@@ -398,7 +400,7 @@ export default function DealCommandBox({
             exit={{ opacity: 0 }}
             className="mt-3 text-center text-[13px] font-medium text-gold"
           >
-            Listening… speak naturally. Tap the mic or send to stop.
+            {t.commandBox.listening}
           </motion.p>
         )}
       </AnimatePresence>

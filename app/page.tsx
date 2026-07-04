@@ -29,53 +29,20 @@ import type {
   UserContact,
 } from "@/lib/types";
 import BookReview from "@/components/BookReview";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
+// Icons + hrefs are static; the title/body text comes from the dictionary by index.
 const HOW_IT_WORKS = [
-  {
-    icon: ScanLine,
-    title: "Describe",
-    body: "Tell the engine your deal in plain English. No forms, no fields, no application.",
-    href: "/#top",
-  },
-  {
-    icon: Calculator,
-    title: "Calculate",
-    body: "Deterministic models compute LTV, CLTV, leverage, and equity — the numbers are never guessed.",
-    href: "/tools",
-  },
-  {
-    icon: Route,
-    title: "Route",
-    body: "With your consent, the structured scenario goes to GRCRM for licensed review and capital-source routing.",
-    href: "/company",
-  },
+  { icon: ScanLine, href: "/#top" },
+  { icon: Calculator, href: "/tools" },
+  { icon: Route, href: "/company" },
 ];
 
 const SOLUTIONS = [
-  {
-    icon: RefreshCw,
-    title: "Cash-Out & Refinance",
-    body: "Turn equity you already have into usable cash — through a new 1st or a 2nd deed of trust.",
-    href: "/solutions#cash-out",
-  },
-  {
-    icon: Hammer,
-    title: "Fix & Flip / Bridge",
-    body: "Short-term capital to buy, renovate, and resell — sized around cost and future value.",
-    href: "/solutions#fix-flip",
-  },
-  {
-    icon: Building,
-    title: "Construction Completion",
-    body: "Capital to finish a stalled or bank-declined building project, funded to the remaining budget.",
-    href: "/solutions#construction",
-  },
-  {
-    icon: Layers,
-    title: "2nd Deed of Trust",
-    body: "A second loan behind your existing first — tap equity without touching your current loan.",
-    href: "/solutions#second",
-  },
+  { icon: RefreshCw, href: "/solutions#cash-out" },
+  { icon: Hammer, href: "/solutions#fix-flip" },
+  { icon: Building, href: "/solutions#construction" },
+  { icon: Layers, href: "/solutions#second" },
 ];
 
 // Prefill examples when a Solutions card / menu item points at /?start=<key>.
@@ -88,6 +55,7 @@ const START_EXAMPLES: Record<string, string> = {
 };
 
 export default function Home() {
+  const { t } = useLocale();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +120,7 @@ export default function Home() {
           }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error ?? "Something went wrong.");
+        if (!res.ok) throw new Error(data?.error ?? t.home.errorGeneric);
 
         const d = data as ChatDealResponse;
         setMessages((prev) => [...prev, { role: "assistant", content: d.assistantMessage }]);
@@ -169,20 +137,19 @@ export default function Home() {
           conversationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unexpected error.");
+        setError(err instanceof Error ? err.message : t.home.errorUnexpected);
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content:
-              "Sorry — I hit a snag processing that. Please try rephrasing your deal.",
+            content: t.home.chatErrorReply,
           },
         ]);
       } finally {
         setLoading(false);
       }
     },
-    [loading, messages, scenario],
+    [loading, messages, scenario, t],
   );
 
   const sendScenario = useCallback(async () => {
@@ -242,19 +209,16 @@ export default function Home() {
             className="mx-auto max-w-2xl text-center"
           >
             <span className="inline-block rounded-full border border-hairline bg-white/60 px-3.5 py-1.5 text-[12.5px] font-medium tracking-wide text-navy-muted">
-              California Private Capital, explained simply
+              {t.home.eyebrow}
             </span>
             <h1 className="mt-6 text-balance text-[34px] font-semibold leading-[1.08] tracking-tight text-navy sm:text-[48px]">
-              Describe your California real estate deal.
+              {t.home.heroTitle}
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-balance text-[17px] leading-relaxed text-navy-muted sm:text-[19px]">
-              Tell us what you&apos;re trying to do with your property, in your own words. CADeed
-              instantly explains your options for private (non-bank) real estate financing, does
-              the math for you, and shows what a lender would look at.
+              {t.home.heroSub}
             </p>
             <p className="mx-auto mt-3 max-w-lg text-balance text-[14px] leading-relaxed text-navy-muted/85">
-              No application, no long forms, and no credit check to see your options — and nothing
-              here is a loan approval or commitment. Just a clear picture, in seconds.
+              {t.home.heroReassure}
             </p>
 
             {/* Helper links for first-time visitors */}
@@ -263,19 +227,19 @@ export default function Home() {
                 href="/resources"
                 className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-1.5 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
               >
-                What is private capital?
+                {t.home.helperWhatIs}
               </a>
               <a
                 href="/solutions"
                 className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-1.5 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
               >
-                See the options
+                {t.home.helperSeeOptions}
               </a>
               <a
                 href="/#how-it-works"
                 className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-1.5 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
               >
-                How it works
+                {t.home.helperHowItWorks}
               </a>
             </div>
           </motion.div>
@@ -289,8 +253,8 @@ export default function Home() {
               loading={loading}
               placeholder={
                 messages.length === 0
-                  ? "Tell us your deal in plain English..."
-                  : "Answer or add more detail..."
+                  ? t.home.placeholderEmpty
+                  : t.home.placeholderContinue
               }
               showExampleHint={messages.length === 0}
             />
@@ -351,12 +315,12 @@ export default function Home() {
         {/* How it works */}
         <section id="how-it-works" className="mt-28 scroll-mt-24">
           <h2 className="text-center text-[13px] font-semibold uppercase tracking-[0.18em] text-navy-muted">
-            How It Works
+            {t.home.howTitle}
           </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {HOW_IT_WORKS.map((step, i) => (
               <motion.a
-                key={step.title}
+                key={t.home.how[i].title}
                 href={step.href}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -368,13 +332,15 @@ export default function Home() {
                   <step.icon size={20} />
                 </span>
                 <h3 className="mt-4 flex items-center gap-1.5 text-[17px] font-semibold tracking-tight text-navy">
-                  {step.title}
+                  {t.home.how[i].title}
                   <ArrowRight
                     size={15}
                     className="-translate-x-1 text-navy/0 transition-all group-hover:translate-x-0 group-hover:text-navy/40"
                   />
                 </h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-navy-muted">{step.body}</p>
+                <p className="mt-2 text-[14.5px] leading-relaxed text-navy-muted">
+                  {t.home.how[i].body}
+                </p>
               </motion.a>
             ))}
           </div>
@@ -383,16 +349,15 @@ export default function Home() {
         {/* Solutions */}
         <section id="solutions" className="mt-24 scroll-mt-24">
           <h2 className="text-center text-[13px] font-semibold uppercase tracking-[0.18em] text-navy-muted">
-            Solutions
+            {t.home.solutionsTitle}
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-balance text-center text-[15px] leading-relaxed text-navy-muted">
-            New to private capital? Tap any option to understand what it is, when it fits, and
-            how it works — in plain English. No form to fill out.
+            {t.home.solutionsIntro}
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {SOLUTIONS.map((sol, i) => (
               <motion.a
-                key={sol.title}
+                key={t.home.solutions[i].title}
                 href={sol.href}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -405,13 +370,15 @@ export default function Home() {
                 </span>
                 <div className="flex-1">
                   <h3 className="flex items-center gap-1.5 text-[17px] font-semibold tracking-tight text-navy">
-                    {sol.title}
+                    {t.home.solutions[i].title}
                     <ArrowRight
                       size={15}
                       className="-translate-x-1 text-navy/0 transition-all group-hover:translate-x-0 group-hover:text-navy/40"
                     />
                   </h3>
-                  <p className="mt-2 text-[14.5px] leading-relaxed text-navy-muted">{sol.body}</p>
+                  <p className="mt-2 text-[14.5px] leading-relaxed text-navy-muted">
+                    {t.home.solutions[i].body}
+                  </p>
                 </div>
               </motion.a>
             ))}
@@ -422,17 +389,13 @@ export default function Home() {
         <section id="about" className="mt-24 scroll-mt-24">
           <div className="glass-card mx-auto max-w-3xl rounded-card p-8 text-center shadow-soft sm:p-12">
             <h2 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-navy-muted">
-              About Us
+              {t.home.aboutTitle}
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-balance text-[19px] font-medium leading-relaxed text-navy sm:text-[22px]">
-              CADeed is a California deal intake terminal for private capital. It reads a deal the
-              way an experienced capital desk would — then maps the structure, the math, and the
-              missing pieces in seconds.
+              {t.home.aboutLead}
             </p>
             <p className="mx-auto mt-4 max-w-xl text-[14.5px] leading-relaxed text-navy-muted">
-              We pair deterministic underwriting math with language understanding, so the numbers
-              are never invented — only the reasoning is accelerated. Scenarios are routed to
-              licensed professionals and private capital sources through GRCRM.
+              {t.home.aboutBody}
             </p>
           </div>
         </section>
@@ -440,16 +403,16 @@ export default function Home() {
         {/* Resources */}
         <section id="resources" className="mt-24 scroll-mt-24">
           <h2 className="text-center text-[13px] font-semibold uppercase tracking-[0.18em] text-navy-muted">
-            Resources
+            {t.home.resourcesTitle}
           </h2>
           <div className="mx-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
             {[
-              { label: "California lien position basics", href: "/resources#lien-basics" },
-              { label: "Business-purpose vs. consumer loans", href: "/resources#business-purpose" },
-              { label: "Understanding CLTV and equity", href: "/resources#cltv" },
+              { label: t.home.resources[0], href: "/resources#lien-basics" },
+              { label: t.home.resources[1], href: "/resources#business-purpose" },
+              { label: t.home.resources[2], href: "/resources#cltv" },
             ].map((r) => (
               <a
-                key={r.label}
+                key={r.href}
                 href={r.href}
                 className="glass-card group flex items-center justify-between gap-3 rounded-2xl p-5 shadow-soft transition-transform hover:-translate-y-0.5"
               >
@@ -467,11 +430,10 @@ export default function Home() {
         <section id="book" className="mt-24 scroll-mt-24">
           <div className="mx-auto max-w-3xl rounded-card bg-navy p-8 text-center shadow-lift sm:p-12">
             <h2 className="text-[26px] font-semibold tracking-tight text-white sm:text-[32px]">
-              Book a deal review.
+              {t.home.bookTitle}
             </h2>
             <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-white/70">
-              Bring your scenario to a licensed professional and a private capital source for a
-              real, structured conversation.
+              {t.home.bookSub}
             </p>
             <BookReview />
           </div>

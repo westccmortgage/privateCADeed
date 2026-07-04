@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { Sparkles, ArrowRight, Route, Gauge } from "lucide-react";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 interface Chip {
   label: string;
@@ -92,6 +93,7 @@ const PARTICLES = Array.from({ length: 8 }, (_, i) => {
 });
 
 export default function EngineDemo({ onTry }: { onTry?: (key: string) => void }) {
+  const { t } = useLocale();
   const [active, setActive] = useState(0);
   const [typed, setTyped] = useState("");
   const [phase, setPhase] = useState<"typing" | "extract" | "result">("typing");
@@ -210,7 +212,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
           <span className="h-2.5 w-2.5 rounded-full bg-[#e7d3a1]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#bcd6b5]" />
           <span className="ml-2 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
-            <Sparkles size={12} className="text-gold" /> CADeed engine · live preview
+            <Sparkles size={12} className="text-gold" /> {t.demo.caption}
           </span>
           {/* autoplay progress */}
           <div className="ml-auto h-0.5 w-16 overflow-hidden rounded-full bg-hairline">
@@ -250,7 +252,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
             </div>
 
             <p className="mt-5 mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
-              Extracted
+              {t.demo.extracted}
             </p>
             <div className="grid grid-cols-2 gap-2.5">
               {sc.chips.map((chip, i) => (
@@ -271,7 +273,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                   className="rounded-xl border border-hairline bg-white/70 px-3.5 py-2.5"
                 >
                   <p className="text-[11px] font-medium uppercase tracking-wide text-navy-muted">
-                    {chip.label}
+                    {t.demo.chipLabels[chip.label] ?? chip.label}
                   </p>
                   <p className="mt-0.5 text-[15px] font-semibold tracking-tight text-navy">
                     {chip.value}
@@ -328,7 +330,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-navy-muted">
-                  <Gauge size={12} /> {sc.metricLabel}
+                  <Gauge size={12} /> {t.demo.metricLabels[sc.metricLabel] ?? sc.metricLabel}
                 </span>
                 <motion.span
                   key={`num-${sc.key}-${result}`}
@@ -357,7 +359,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                       <Route size={14} className="text-gold-soft" />
                     </span>
                     <p className="text-[11px] font-medium uppercase tracking-wide text-white/55">
-                      Likely capital path
+                      {t.demo.likelyPath}
                     </p>
                   </div>
                   <p className="mt-2 text-[16px] font-semibold leading-tight tracking-tight">
@@ -370,7 +372,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                         : "border-amber-300/40 bg-amber-400/15 text-amber-100"
                     }`}
                   >
-                    {sc.strength}
+                    {sc.strength === "Strong" ? t.demo.strong : t.demo.moderate}
                   </span>
                 </motion.div>
               )}
@@ -381,14 +383,14 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
         {/* footer CTA */}
         <div className="flex flex-col items-center justify-between gap-3 border-t border-hairline bg-white/50 px-6 py-4 sm:flex-row sm:px-8">
           <p className="text-[13px] text-navy-muted">
-            A live preview — your real numbers are computed the same deterministic way.
+            {t.demo.footer}
           </p>
           <button
             type="button"
             onClick={() => onTry?.(sc.key)}
             className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-[14px] font-medium text-white/95 transition-colors hover:bg-navy-soft"
           >
-            Describe your own deal
+            {t.demo.cta}
             <ArrowRight size={16} />
           </button>
         </div>

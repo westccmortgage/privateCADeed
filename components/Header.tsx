@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ChevronDown, ArrowRight } from "lucide-react";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
+import type { Messages } from "@/lib/i18n/dictionaries";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface SubLink {
   label: string;
@@ -18,130 +21,135 @@ interface NavItem {
   columns?: Column[];
 }
 
-const NAV: NavItem[] = [
-  {
-    label: "How It Works",
-    href: "/#how-it-works",
-    columns: [
-      {
-        title: "The engine",
-        links: [
-          { label: "Describe your deal", href: "/" },
-          { label: "Deterministic math", href: "/#how-it-works" },
-          { label: "Next best question", href: "/#how-it-works" },
-        ],
-      },
-      {
-        title: "Why it's different",
-        links: [
-          { label: "No application form", href: "/for-borrowers" },
-          { label: "Numbers are never invented", href: "/company#underwriting" },
-          { label: "Routed through GRCRM", href: "/company" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Solutions",
-    href: "/solutions",
-    columns: [
-      {
-        title: "Capital paths",
-        links: [
-          { label: "Cash-Out & Refinance", href: "/solutions#cash-out" },
-          { label: "2nd Deed of Trust", href: "/solutions#second" },
-          { label: "Fix & Flip / Bridge", href: "/solutions#fix-flip" },
-          { label: "Construction Completion", href: "/solutions#construction" },
-        ],
-      },
-      {
-        title: "Who it's for",
-        links: [
-          { label: "For borrowers", href: "/for-borrowers" },
-          { label: "For brokers", href: "/for-brokers" },
-          { label: "For capital sources", href: "/for-capital-sources" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Tools",
-    href: "/tools",
-    columns: [
-      {
-        title: "Calculators",
-        links: [
-          { label: "CLTV calculator", href: "/tools/cltv" },
-          { label: "LTV / LTC calculator", href: "/tools/ltv-ltc" },
-          { label: "Fix & flip profit", href: "/tools/flip-profit" },
-        ],
-      },
-      {
-        title: "More tools",
-        links: [
-          { label: "DSCR calculator", href: "/tools/dscr" },
-          { label: "Max-loan solver", href: "/tools/max-loan" },
-          { label: "All tools", href: "/tools" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Resources",
-    href: "/resources",
-    columns: [
-      {
-        title: "Learn",
-        links: [
-          { label: "California lien position basics", href: "/resources" },
-          { label: "Understanding CLTV & equity", href: "/resources" },
-          { label: "Business-purpose vs. consumer", href: "/resources" },
-        ],
-      },
-      {
-        title: "More",
-        links: [
-          { label: "Glossary", href: "/resources" },
-          { label: "FAQ", href: "/faq" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Company",
-    href: "/company",
-    columns: [
-      {
-        title: "Company",
-        links: [
-          { label: "About CADeed", href: "/company" },
-          { label: "How we underwrite", href: "/company#underwriting" },
-          { label: "Compliance & licensing", href: "/company#compliance" },
-          { label: "Legal & privacy", href: "/legal" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "For Capital Sources",
-    href: "/for-capital-sources",
-    columns: [
-      {
-        title: "Capital sources",
-        links: [
-          { label: "Submit your lending box", href: "/for-capital-sources" },
-          { label: "How routing works", href: "/for-capital-sources" },
-          { label: "Receive matched scenarios", href: "/for-capital-sources" },
-        ],
-      },
-    ],
-  },
-];
+function buildNav(t: Messages): NavItem[] {
+  const { nav, cols, links } = t.header;
+  return [
+    {
+      label: nav.howItWorks,
+      href: "/#how-it-works",
+      columns: [
+        {
+          title: cols.theEngine,
+          links: [
+            { label: links.describeDeal, href: "/" },
+            { label: links.deterministicMath, href: "/#how-it-works" },
+            { label: links.nextBestQuestion, href: "/#how-it-works" },
+          ],
+        },
+        {
+          title: cols.whyDifferent,
+          links: [
+            { label: links.noApplicationForm, href: "/for-borrowers" },
+            { label: links.numbersNeverInvented, href: "/company#underwriting" },
+            { label: links.routedGrcrm, href: "/company" },
+          ],
+        },
+      ],
+    },
+    {
+      label: nav.solutions,
+      href: "/solutions",
+      columns: [
+        {
+          title: cols.capitalPaths,
+          links: [
+            { label: links.cashOut, href: "/solutions#cash-out" },
+            { label: links.secondDeed, href: "/solutions#second" },
+            { label: links.fixFlip, href: "/solutions#fix-flip" },
+            { label: links.construction, href: "/solutions#construction" },
+          ],
+        },
+        {
+          title: cols.whoItsFor,
+          links: [
+            { label: links.forBorrowers, href: "/for-borrowers" },
+            { label: links.forBrokers, href: "/for-brokers" },
+            { label: links.forCapitalSources, href: "/for-capital-sources" },
+          ],
+        },
+      ],
+    },
+    {
+      label: nav.tools,
+      href: "/tools",
+      columns: [
+        {
+          title: cols.calculators,
+          links: [
+            { label: links.cltvCalc, href: "/tools/cltv" },
+            { label: links.ltvLtcCalc, href: "/tools/ltv-ltc" },
+            { label: links.flipProfit, href: "/tools/flip-profit" },
+          ],
+        },
+        {
+          title: cols.moreTools,
+          links: [
+            { label: links.dscrCalc, href: "/tools/dscr" },
+            { label: links.maxLoan, href: "/tools/max-loan" },
+            { label: links.allTools, href: "/tools" },
+          ],
+        },
+      ],
+    },
+    {
+      label: nav.resources,
+      href: "/resources",
+      columns: [
+        {
+          title: cols.learn,
+          links: [
+            { label: links.lienBasics, href: "/resources" },
+            { label: links.understandingCltv, href: "/resources" },
+            { label: links.businessPurpose, href: "/resources" },
+          ],
+        },
+        {
+          title: cols.more,
+          links: [
+            { label: links.glossary, href: "/resources" },
+            { label: links.faq, href: "/faq" },
+          ],
+        },
+      ],
+    },
+    {
+      label: nav.company,
+      href: "/company",
+      columns: [
+        {
+          title: cols.company,
+          links: [
+            { label: links.aboutCadeed, href: "/company" },
+            { label: links.howWeUnderwrite, href: "/company#underwriting" },
+            { label: links.complianceLicensing, href: "/company#compliance" },
+            { label: links.legalPrivacy, href: "/legal" },
+          ],
+        },
+      ],
+    },
+    {
+      label: nav.forCapitalSources,
+      href: "/for-capital-sources",
+      columns: [
+        {
+          title: cols.capitalSources,
+          links: [
+            { label: links.submitLendingBox, href: "/for-capital-sources" },
+            { label: links.howRoutingWorks, href: "/for-capital-sources" },
+            { label: links.receiveScenarios, href: "/for-capital-sources" },
+          ],
+        },
+      ],
+    },
+  ];
+}
 
 // Subtle "shaded" letters — a faint shadow for depth without brightness.
 const SHADE = "[text-shadow:0_0.5px_1px_rgb(7_26_61_/_0.10)]";
 
 export default function Header() {
+  const { t } = useLocale();
+  const NAV = buildNav(t);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -199,14 +207,17 @@ export default function Header() {
             })}
           </div>
 
-          {/* Right CTA */}
-          <div className="hidden md:block">
+          {/* Right: language + CTA */}
+          <div className="hidden items-center gap-1.5 md:flex">
+            <div onMouseEnter={() => setActive(null)}>
+              <LanguageSwitcher />
+            </div>
             <a
               href="/#book"
               onMouseEnter={() => setActive(null)}
               className={`rounded-full bg-navy px-4 py-1.5 text-[13px] font-medium text-white/95 transition-colors hover:bg-navy-soft ${SHADE}`}
             >
-              Book Deal Review
+              {t.header.cta}
             </a>
           </div>
 
@@ -332,12 +343,15 @@ export default function Header() {
                   </div>
                 );
               })}
+              <div className="mt-1 border-t border-[#eef2f8]">
+                <LanguageSwitcher variant="block" />
+              </div>
               <a
                 href="/#book"
                 onClick={() => setOpen(false)}
-                className="mt-3 block rounded-full bg-navy px-3 py-2.5 text-center text-[15px] font-medium text-white"
+                className="mt-2 block rounded-full bg-navy px-3 py-2.5 text-center text-[15px] font-medium text-white"
               >
-                Book Deal Review
+                {t.header.cta}
               </a>
             </div>
           </motion.div>

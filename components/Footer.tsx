@@ -1,19 +1,24 @@
-import { COMPANY, telHref } from "@/lib/company";
+"use client";
 
-const FOOTER_LINKS = [
-  { label: "How It Works", href: "/#how-it-works" },
-  { label: "Solutions", href: "/#solutions" },
-  { label: "Tools", href: "/tools" },
-  { label: "Resources", href: "/resources" },
-  { label: "FAQ", href: "/faq" },
-  { label: "For Borrowers", href: "/for-borrowers" },
-  { label: "For Brokers", href: "/for-brokers" },
-  { label: "For Capital Sources", href: "/for-capital-sources" },
-  { label: "Company", href: "/company" },
-  { label: "Legal & Privacy", href: "/legal" },
-];
+import { COMPANY, telHref } from "@/lib/company";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 export default function Footer() {
+  const { t } = useLocale();
+
+  const footerLinks = [
+    { label: t.footer.links.howItWorks, href: "/#how-it-works" },
+    { label: t.footer.links.solutions, href: "/#solutions" },
+    { label: t.footer.links.tools, href: "/tools" },
+    { label: t.footer.links.resources, href: "/resources" },
+    { label: t.footer.links.faq, href: "/faq" },
+    { label: t.footer.links.forBorrowers, href: "/for-borrowers" },
+    { label: t.footer.links.forBrokers, href: "/for-brokers" },
+    { label: t.footer.links.forCapitalSources, href: "/for-capital-sources" },
+    { label: t.footer.links.company, href: "/company" },
+    { label: t.footer.links.legalPrivacy, href: "/legal" },
+  ];
+
   return (
     <footer className="mx-auto mt-20 max-w-engine px-5 pb-12 sm:px-8">
       <div className="border-t border-hairline pt-8">
@@ -23,14 +28,14 @@ export default function Footer() {
               CADeed<span className="text-gold">.com</span>
             </span>
             <span className="mt-1 text-[12px] font-medium tracking-wide text-navy-muted">
-              Private Capital Engine
+              {t.footer.tagline}
             </span>
           </div>
 
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
-            {FOOTER_LINKS.map((link) => (
+            {footerLinks.map((link) => (
               <a
-                key={link.label}
+                key={link.href + link.label}
                 href={link.href}
                 className="text-[13px] font-medium text-navy-muted transition-colors hover:text-navy"
               >
@@ -52,11 +57,7 @@ export default function Footer() {
           </a>
         </p>
         <p className="mt-2 text-[12px] leading-relaxed text-navy-muted/80">
-          © {new Date().getFullYear()} CADeed.com · California Private Capital
-          Engine. Information presented is for preliminary scenario modeling only
-          and does not constitute a loan approval, commitment to lend, or an
-          offer of credit. Private capital arranged through licensed
-          professionals where required.
+          © {new Date().getFullYear()} {t.footer.disclaimer}
         </p>
       </div>
     </footer>

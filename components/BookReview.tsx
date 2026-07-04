@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Send, Check, ArrowRight, ExternalLink } from "lucide-react";
 import { COMPANY, telHref } from "@/lib/company";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 // Built-in scheduling link (override in Netlify with NEXT_PUBLIC_BOOKING_URL).
 const BOOKING_URL =
@@ -13,6 +14,7 @@ const inputClass =
   "w-full rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 text-[14px] text-white outline-none transition-colors placeholder:text-white/45 focus:border-white/35";
 
 export default function BookReview() {
+  const { t } = useLocale();
   const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" });
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -37,10 +39,10 @@ export default function BookReview() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Could not send your request.");
+      if (!res.ok) throw new Error(data?.error ?? t.book.error);
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send your request.");
+      setError(err instanceof Error ? err.message : t.book.error);
     } finally {
       setSending(false);
     }
@@ -56,7 +58,7 @@ export default function BookReview() {
           rel="noreferrer"
           className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-navy shadow-lift transition-transform hover:-translate-y-0.5"
         >
-          Pick a time <ExternalLink size={16} />
+          {t.book.pickTime} <ExternalLink size={16} />
         </a>
 
         {!showForm && (
@@ -65,7 +67,7 @@ export default function BookReview() {
             onClick={() => setShowForm(true)}
             className="text-[13px] font-medium text-white/70 underline-offset-2 hover:text-white hover:underline"
           >
-            Prefer a callback? Request one instead
+            {t.book.preferCallback}
           </button>
         )}
       </div>
@@ -77,38 +79,38 @@ export default function BookReview() {
             <div className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-5">
               <Check size={18} className="mt-0.5 shrink-0 text-emerald-300" />
               <p className="text-[14px] leading-relaxed text-white/90">
-                Thanks — we received your request and will reach out shortly.
+                {t.book.done}
               </p>
             </div>
           ) : (
             <>
               <p className="mb-4 text-center text-[13px] font-medium uppercase tracking-wide text-white/55">
-                Request a callback
+                {t.book.requestCallback}
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <input
                   className={inputClass}
-                  placeholder="Full name"
+                  placeholder={t.book.fieldName}
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
                 />
                 <input
                   className={inputClass}
                   type="email"
-                  placeholder="Email"
+                  placeholder={t.book.fieldEmail}
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
                 />
               </div>
               <input
                 className={`${inputClass} mt-3`}
-                placeholder="Phone (optional)"
+                placeholder={t.book.fieldPhone}
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
               />
               <textarea
                 className={`${inputClass} mt-3 min-h-[88px] resize-y`}
-                placeholder="Tell us briefly about your deal (optional)"
+                placeholder={t.book.fieldMessage}
                 value={form.message}
                 onChange={(e) => set("message", e.target.value)}
               />
@@ -123,7 +125,7 @@ export default function BookReview() {
                     : "cursor-not-allowed bg-white/40 text-navy/60"
                 }`}
               >
-                {sending ? "Sending…" : "Request a callback"}
+                {sending ? t.book.sending : t.book.requestCallback}
                 {sending ? <Send size={16} /> : <ArrowRight size={17} />}
               </button>
             </>
@@ -132,7 +134,7 @@ export default function BookReview() {
       )}
 
       <p className="mt-5 text-center text-[13px] text-white/60">
-        or call{" "}
+        {t.book.orCall}{" "}
         <a
           href={telHref(COMPANY.phoneOffice)}
           className="font-medium text-white/80 hover:text-white"
