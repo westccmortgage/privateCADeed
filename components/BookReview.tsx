@@ -9,9 +9,6 @@ const BOOKING_URL =
   process.env.NEXT_PUBLIC_BOOKING_URL ||
   "https://calendly.com/westccmortgage/deal-review";
 
-// Inline embed with brand theming.
-const EMBED_URL = `${BOOKING_URL}?hide_gdpr_banner=1&primary_color=071a3d`;
-
 const inputClass =
   "w-full rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 text-[14px] text-white outline-none transition-colors placeholder:text-white/45 focus:border-white/35";
 
@@ -51,24 +48,15 @@ export default function BookReview() {
 
   return (
     <div className="mt-8">
-      {/* Inline scheduler — pick a time without leaving the page */}
-      <div className="overflow-hidden rounded-2xl bg-white shadow-lift">
-        <iframe
-          src={EMBED_URL}
-          title="Book a deal review"
-          loading="lazy"
-          className="h-[680px] w-full border-0"
-        />
-      </div>
-
-      <div className="mt-4 flex flex-col items-center gap-3 text-center">
+      {/* Scheduler link — opens Calendly in a new tab (no giant inline embed) */}
+      <div className="flex flex-col items-center gap-4 text-center">
         <a
           href={BOOKING_URL}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-white/70 transition-colors hover:text-white"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-navy shadow-lift transition-transform hover:-translate-y-0.5"
         >
-          Open the scheduler in a new tab <ExternalLink size={13} />
+          Pick a time <ExternalLink size={16} />
         </a>
 
         {!showForm && (
