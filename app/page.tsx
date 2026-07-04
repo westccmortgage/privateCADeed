@@ -55,26 +55,26 @@ const SOLUTIONS = [
   {
     icon: RefreshCw,
     title: "Cash-Out & Refinance",
-    body: "Unlock equity through a new 1st or a 2nd deed of trust, sized against combined leverage.",
-    href: "/?start=cashout#top",
+    body: "Turn equity you already have into usable cash — through a new 1st or a 2nd deed of trust.",
+    href: "/solutions#cash-out",
   },
   {
     icon: Hammer,
     title: "Fix & Flip / Bridge",
-    body: "Short-term capital underwritten against cost and after-repair value.",
-    href: "/?start=flip#top",
+    body: "Short-term capital to buy, renovate, and resell — sized around cost and future value.",
+    href: "/solutions#fix-flip",
   },
   {
     icon: Building,
     title: "Construction Completion",
-    body: "Capital to finish stalled or bank-declined projects, funded to the remaining budget.",
-    href: "/?start=construction#top",
+    body: "Capital to finish a stalled or bank-declined building project, funded to the remaining budget.",
+    href: "/solutions#construction",
   },
   {
     icon: Layers,
     title: "2nd Deed of Trust",
-    body: "Subordinate financing behind an existing first when combined leverage allows.",
-    href: "/?start=second#top",
+    body: "A second loan behind your existing first — tap equity without touching your current loan.",
+    href: "/solutions#second",
   },
 ];
 
@@ -242,14 +242,42 @@ export default function Home() {
             className="mx-auto max-w-2xl text-center"
           >
             <span className="inline-block rounded-full border border-hairline bg-white/60 px-3.5 py-1.5 text-[12.5px] font-medium tracking-wide text-navy-muted">
-              California Deal Intake Terminal
+              California Private Capital, explained simply
             </span>
             <h1 className="mt-6 text-balance text-[34px] font-semibold leading-[1.08] tracking-tight text-navy sm:text-[48px]">
               Describe your California real estate deal.
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-balance text-[17px] leading-relaxed text-navy-muted sm:text-[19px]">
-              The engine will calculate the private capital path.
+              Tell us what you&apos;re trying to do with your property, in your own words. CADeed
+              instantly explains your options for private (non-bank) real estate financing, does
+              the math for you, and shows what a lender would look at.
             </p>
+            <p className="mx-auto mt-3 max-w-lg text-balance text-[14px] leading-relaxed text-navy-muted/85">
+              No application, no long forms, and no credit check to see your options — and nothing
+              here is a loan approval or commitment. Just a clear picture, in seconds.
+            </p>
+
+            {/* Helper links for first-time visitors */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <a
+                href="/resources"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-1.5 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
+              >
+                What is private capital?
+              </a>
+              <a
+                href="/solutions"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-1.5 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
+              >
+                See the options
+              </a>
+              <a
+                href="/#how-it-works"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-1.5 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
+              >
+                How it works
+              </a>
+            </div>
           </motion.div>
 
           {/* Command box */}
@@ -357,6 +385,10 @@ export default function Home() {
           <h2 className="text-center text-[13px] font-semibold uppercase tracking-[0.18em] text-navy-muted">
             Solutions
           </h2>
+          <p className="mx-auto mt-3 max-w-xl text-balance text-center text-[15px] leading-relaxed text-navy-muted">
+            New to private capital? Tap any option to understand what it is, when it fits, and
+            how it works — in plain English. No form to fill out.
+          </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {SOLUTIONS.map((sol, i) => (
               <motion.a

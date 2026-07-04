@@ -43,15 +43,15 @@ const NAV: NavItem[] = [
   },
   {
     label: "Solutions",
-    href: "/#solutions",
+    href: "/solutions",
     columns: [
       {
         title: "Capital paths",
         links: [
-          { label: "Cash-Out & Refinance", href: "/?start=cashout#top" },
-          { label: "2nd Deed of Trust", href: "/?start=second#top" },
-          { label: "Fix & Flip / Bridge", href: "/?start=flip#top" },
-          { label: "Construction Completion", href: "/?start=construction#top" },
+          { label: "Cash-Out & Refinance", href: "/solutions#cash-out" },
+          { label: "2nd Deed of Trust", href: "/solutions#second" },
+          { label: "Fix & Flip / Bridge", href: "/solutions#fix-flip" },
+          { label: "Construction Completion", href: "/solutions#construction" },
         ],
       },
       {
