@@ -46,7 +46,7 @@ export default function Footer() {
         </div>
 
         <p className="mt-8 text-[12px] leading-relaxed text-navy-muted">
-          {COMPANY.legalName} · NMLS&nbsp;#{COMPANY.nmls} · {COMPANY.mailingAddress}
+          {COMPANY.legalName} · NMLS&nbsp;#{COMPANY.nmls} · CA DRE Corporation License #{COMPANY.dreCorporationLicense} · {COMPANY.mailingAddress}
           <br />
           <a href={telHref(COMPANY.phoneOffice)} className="hover:text-navy">
             {COMPANY.phoneOffice}
