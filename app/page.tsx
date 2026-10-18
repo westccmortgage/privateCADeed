@@ -20,7 +20,7 @@ import ScenarioResult from "@/components/ScenarioResult";
 import ConsentSubmitPanel from "@/components/ConsentSubmitPanel";
 import ComplianceNotice from "@/components/ComplianceNotice";
 import Footer from "@/components/Footer";
-import EndOfYearSpecial from "@/components/EndOfYearSpecial";
+import EndOfYearSpecial, { EndOfYearSpecialTerms } from "@/components/EndOfYearSpecial";
 import type {
   CalculatedScenario,
   ChatDealResponse,
@@ -445,6 +445,7 @@ export default function Home() {
       </main>
 
       <Footer />
+      <EndOfYearSpecialTerms />
     </div>
   );
 }
