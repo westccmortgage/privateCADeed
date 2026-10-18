@@ -20,6 +20,7 @@ import ScenarioResult from "@/components/ScenarioResult";
 import ConsentSubmitPanel from "@/components/ConsentSubmitPanel";
 import ComplianceNotice from "@/components/ComplianceNotice";
 import Footer from "@/components/Footer";
+import EndOfYearSpecial from "@/components/EndOfYearSpecial";
 import type {
   CalculatedScenario,
   ChatDealResponse,
@@ -263,6 +264,9 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        {/* Year-end investor special */}
+        <EndOfYearSpecial />
 
         {/* Live engine demo — the hook (hidden once a conversation starts) */}
         {messages.length === 0 && (
