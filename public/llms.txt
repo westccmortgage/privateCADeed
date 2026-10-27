@@ -1,0 +1,34 @@
+# CADeed.com — California Private Capital Engine
+
+> A California private-capital engine for business-purpose, trust-deed-secured real estate loans. Describe a deal, calculate the numbers, and route it between borrowers, mortgage brokers, and private capital sources. Loan types include fix & flip, bridge, construction completion, cash-out refinance, and second deeds of trust.
+
+CADeed.com is a private-lending platform run by Anatoliy Kanevsky, a licensed California mortgage and real estate broker in the Los Angeles area. It serves three sides of a private deal: borrowers seeking fast trust-deed financing, brokers placing business-purpose loans, and capital sources looking for deal flow. Loans are business-purpose and secured by California real estate.
+
+- Focus: California, business-purpose (non-owner-occupied) trust-deed loans
+- For borrowers, mortgage brokers, and private capital sources
+- Contact: 310-686-5053 · Los Angeles area
+- Business-purpose lending only. This is not an offer to lend or to buy or sell a security; see the legal and regulatory disclosures.
+
+## Who it's for
+- [For borrowers](https://cadeed.com/for-borrowers): Fast, trust-deed-secured financing for a project.
+- [For brokers](https://cadeed.com/for-brokers): Place business-purpose loans and keep your client.
+- [For capital sources](https://cadeed.com/for-capital-sources): Set your box and receive matching deal flow.
+- [Solutions](https://cadeed.com/solutions): Loan types and how routing works.
+
+## Loan types
+- Fix & flip / bridge
+- Construction completion
+- Cash-out and refinance
+- Second deeds of trust
+
+## Tools
+- [Max loan](https://cadeed.com/tools/max-loan): Estimate the maximum loan for a deal.
+- [LTV / LTC](https://cadeed.com/tools/ltv-ltc): Loan-to-value and loan-to-cost.
+- [CLTV](https://cadeed.com/tools/cltv): Combined loan-to-value across liens.
+- [DSCR](https://cadeed.com/tools/dscr): Debt-service coverage for income property.
+- [Flip profit](https://cadeed.com/tools/flip-profit): Estimate profit on a fix-and-flip.
+
+## More
+- [Company](https://cadeed.com/company): About the platform and the broker behind it.
+- [FAQ](https://cadeed.com/faq): Common questions on private trust-deed lending.
+- [Legal & disclosures](https://cadeed.com/legal): Lending, regulatory, and privacy disclosures.
