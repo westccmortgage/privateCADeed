@@ -2,7 +2,7 @@
 
 /** HTML `pattern` for phone inputs (the browser anchors it automatically). */
 export const PHONE_PATTERN =
-  "\\+[^0-9]*([0-9][^0-9]*){10,15}|[^0-9+]*(1[^0-9]*)?([0-9][^0-9]*){10}";
+  "\\+[^0-9A-Za-z]*([0-9][^0-9A-Za-z]*){10,15}|[^0-9A-Za-z+]*(1[^0-9A-Za-z]*)?([0-9][^0-9A-Za-z]*){10}";
 
 export const PHONE_HINT =
   "US number with 10 digits, or an international number starting with +";
