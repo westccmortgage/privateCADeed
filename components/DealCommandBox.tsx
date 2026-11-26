@@ -265,15 +265,12 @@ export default function DealCommandBox({
 
   return (
     <div className="relative w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-card rounded-card p-2.5 shadow-lift"
-      >
+      <div className="glass-card rounded-card p-2.5 shadow-lift">
         <div className="rounded-[18px] bg-white/60 p-4 sm:p-5">
           <textarea
             ref={textareaRef}
+            aria-label={t.commandBox.ariaLabel}
+            name="deal"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -294,7 +291,7 @@ export default function DealCommandBox({
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3 py-2 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3 py-2 text-[13px] font-medium text-navy-soft transition-colors hover:border-navy/20 hover:text-navy"
               >
                 <Sparkles size={15} className="text-gold" />
                 {t.commandBox.tryExample}
@@ -390,7 +387,7 @@ export default function DealCommandBox({
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {listening && (

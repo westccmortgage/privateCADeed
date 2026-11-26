@@ -31,6 +31,8 @@ import type {
 } from "@/lib/types";
 import BookReview from "@/components/BookReview";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
+import { RequestFailure, postJson } from "@/lib/forms";
+import FormError from "@/components/FormError";
 
 // Icons + hrefs are static; the title/body text comes from the dictionary by index.
 const HOW_IT_WORKS = [
@@ -59,7 +61,7 @@ export default function Home() {
   const { t } = useLocale();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<RequestFailure | null>(null);
 
   const [messages, setMessages] = useState<ChatTurn[]>([]);
   const [scenario, setScenario] = useState<ExtractedScenario | null>(null);
@@ -76,8 +78,10 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submitFailure, setSubmitFailure] = useState<RequestFailure | null>(null);
 
   const conversationRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
 
   // Prefill the terminal from a Solutions card / menu link (/?start=cashout).
   useEffect(() => {
@@ -111,19 +115,11 @@ export default function Home() {
       setLoading(true);
 
       try {
-        const res = await fetch("/api/chat-deal", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: msg,
-            currentScenario: scenario,
-            conversation: priorConversation,
-          }),
+        const d = await postJson<ChatDealResponse>("/api/chat-deal", {
+          message: msg,
+          currentScenario: scenario,
+          conversation: priorConversation,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error ?? t.home.errorGeneric);
-
-        const d = data as ChatDealResponse;
         setMessages((prev) => [...prev, { role: "assistant", content: d.assistantMessage }]);
         setScenario(d.mergedScenario);
         setCalculated(d.calculated);
@@ -138,14 +134,17 @@ export default function Home() {
           conversationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : t.home.errorUnexpected);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: t.home.chatErrorReply,
-          },
-        ]);
+        const failure =
+          err instanceof RequestFailure ? err : new RequestFailure("service", "unknown");
+        setError(failure);
+        // Only a network/server failure gets the apology bubble; the engine's own
+        // validation messages (empty / too long) are shown under the box as is.
+        if (failure.kind === "service") {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: t.home.chatErrorReply },
+          ]);
+        }
       } finally {
         setLoading(false);
       }
@@ -154,35 +153,34 @@ export default function Home() {
   );
 
   const sendScenario = useCallback(async () => {
-    if (!scenario || !calculated || submitting) return;
+    if (!scenario || !calculated || submitting || sendingRef.current) return;
     if (!consent) {
       setSubmitMessage("Please authorize the review with the consent box first.");
       return;
     }
+    sendingRef.current = true;
     setSubmitting(true);
     setSubmitMessage(null);
+    setSubmitFailure(null);
     try {
-      const res = await fetch("/api/save-scenario", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawUserInput: messages.find((m) => m.role === "user")?.content ?? "",
-          rawConversation: messages,
-          extractedScenario: scenario,
-          calculatedScenario: calculated,
-          missingInformation,
-          nextBestQuestion,
-          consentGiven: consent,
-          userContact: contact,
-        }),
+      const data = await postJson<{ message?: string }>("/api/save-scenario", {
+        rawUserInput: messages.find((m) => m.role === "user")?.content ?? "",
+        rawConversation: messages,
+        extractedScenario: scenario,
+        calculatedScenario: calculated,
+        missingInformation,
+        nextBestQuestion,
+        consentGiven: consent,
+        userContact: contact,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Could not send the scenario.");
       setSubmitted(true);
       setSubmitMessage(data.message ?? "Scenario received for review.");
     } catch (err) {
-      setSubmitMessage(err instanceof Error ? err.message : "Could not send the scenario.");
+      setSubmitFailure(
+        err instanceof RequestFailure ? err : new RequestFailure("service", "unknown"),
+      );
     } finally {
+      sendingRef.current = false;
       setSubmitting(false);
     }
   }, [
@@ -203,12 +201,7 @@ export default function Home() {
       <main className="mx-auto max-w-engine px-5 sm:px-8">
         {/* Hero */}
         <section className="pt-14 sm:pt-20">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto max-w-2xl text-center"
-          >
+          <div className="mx-auto max-w-2xl text-center">
             <span className="inline-block rounded-full border border-hairline bg-white/60 px-3.5 py-1.5 text-[12.5px] font-medium tracking-wide text-navy-muted">
               {t.home.eyebrow}
             </span>
@@ -243,7 +236,7 @@ export default function Home() {
                 {t.home.helperHowItWorks}
               </a>
             </div>
-          </motion.div>
+          </div>
 
           {/* Command box */}
           <div className="mx-auto mt-10 max-w-3xl">
@@ -259,9 +252,11 @@ export default function Home() {
               }
               showExampleHint={messages.length === 0}
             />
-            {error && (
-              <p className="mt-3 text-center text-[14px] font-medium text-red-600">{error}</p>
-            )}
+            <FormError
+              failure={error}
+              lead={t.home.errorService}
+              className="mt-3 text-center"
+            />
           </div>
         </section>
 
@@ -308,6 +303,7 @@ export default function Home() {
                 submitting={submitting}
                 submitted={submitted}
                 submitMessage={submitMessage}
+                submitFailure={submitFailure}
                 ready={canSubmit}
               />
 

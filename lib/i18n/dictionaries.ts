@@ -36,11 +36,11 @@ const en = {
     },
     links: {
       describeDeal: "Describe your deal",
-      deterministicMath: "Deterministic math",
+      deterministicMath: "Formula-based math",
       nextBestQuestion: "Next best question",
       noApplicationForm: "No application form",
       numbersNeverInvented: "Numbers are never invented",
-      routedGrcrm: "Routed through GRCRM",
+      routedGrcrm: "Routed for licensed review",
       cashOut: "Cash-Out & Refinance",
       secondDeed: "2nd Deed of Trust",
       fixFlip: "Fix & Flip / Bridge",
@@ -101,8 +101,9 @@ const en = {
     placeholderContinue: "Answer or add more detail...",
     errorGeneric: "Something went wrong analyzing the deal.",
     errorUnexpected: "Unexpected error.",
+    errorService: "We could not process your message. Please try again or call",
     chatErrorReply:
-      "Sorry — I hit a snag processing that. Please try rephrasing your deal.",
+      "Sorry — I could not process that just now. Please try again in a moment.",
     howTitle: "How It Works",
     how: [
       {
@@ -111,11 +112,11 @@ const en = {
       },
       {
         title: "Calculate",
-        body: "Deterministic models compute LTV, CLTV, leverage, and equity — the numbers are never guessed.",
+        body: "Formula-based models compute LTV, CLTV, leverage, and equity — the numbers are never guessed.",
       },
       {
         title: "Route",
-        body: "With your consent, the structured scenario goes to GRCRM for licensed review and capital-source routing.",
+        body: "With your consent, the structured scenario goes to our CRM for licensed review and capital-source routing.",
       },
     ],
     solutionsTitle: "Solutions",
@@ -141,9 +142,9 @@ const en = {
     ],
     aboutTitle: "About Us",
     aboutLead:
-      "CADeed is a California deal intake terminal for private capital. It reads a deal the way an experienced capital desk would — then maps the structure, the math, and the missing pieces in seconds.",
+      "CADeed is a California deal review tool for private capital. It reads a deal the way an experienced capital desk would — then maps the structure, the math, and the missing pieces in seconds.",
     aboutBody:
-      "We pair deterministic underwriting math with language understanding, so the numbers are never invented — only the reasoning is accelerated. Scenarios are routed to licensed professionals and private capital sources through GRCRM.",
+      "We pair formula-based underwriting math with language understanding, so the numbers are never invented — only the reasoning is accelerated. Scenarios are routed to licensed professionals and private capital sources through our CRM.",
     resourcesTitle: "Resources",
     resources: [
       "California lien position basics",
@@ -160,6 +161,7 @@ const en = {
     listening: "Listening… speak naturally. Tap the mic or send to stop.",
     exampleHint:
       "Example: I need $300K cash-out on a Los Angeles property worth $1.2M. I owe $520K.",
+    ariaLabel: "Describe your deal",
     ariaDictate: "Dictate your deal",
     ariaStop: "Stop dictation",
     ariaSubmit: "Analyze deal",
@@ -177,7 +179,7 @@ const en = {
     likelyPath: "Likely capital path",
     strong: "Strong",
     moderate: "Moderate",
-    footer: "A live preview — your real numbers are computed the same deterministic way.",
+    footer: "A live preview — your real numbers are computed with the same formulas.",
     cta: "Describe your own deal",
     chipLabels: {
       Value: "Value",
@@ -204,7 +206,9 @@ const en = {
     requestCallback: "Request a callback",
     sending: "Sending…",
     done: "Thanks — we received your request and will reach out shortly.",
-    error: "Could not send your request.",
+    errorService: "We could not send your request. Please try again or call",
+    consent: "By sending, you agree we may contact you by phone or email about your request.",
+    privacy: "Privacy",
     fieldName: "Full name",
     fieldEmail: "Email",
     fieldPhone: "Phone (optional)",
@@ -335,11 +339,11 @@ const es: Messages = {
     },
     links: {
       describeDeal: "Describe tu operación",
-      deterministicMath: "Matemática determinista",
+      deterministicMath: "Cálculos con fórmulas",
       nextBestQuestion: "Siguiente mejor pregunta",
       noApplicationForm: "Sin formulario de solicitud",
       numbersNeverInvented: "Los números nunca se inventan",
-      routedGrcrm: "Derivado a través de GRCRM",
+      routedGrcrm: "Derivado a revisión con licencia",
       cashOut: "Refinanciación y retiro de efectivo",
       secondDeed: "2ª escritura de fideicomiso",
       fixFlip: "Reforma y venta / Puente",
@@ -400,8 +404,9 @@ const es: Messages = {
     placeholderContinue: "Responde o añade más detalles...",
     errorGeneric: "Algo salió mal al analizar la operación.",
     errorUnexpected: "Error inesperado.",
+    errorService: "No pudimos procesar tu mensaje. Inténtalo de nuevo o llama al",
     chatErrorReply:
-      "Lo siento, tuve un problema al procesar eso. Intenta reformular tu operación.",
+      "Lo siento, no pude procesar eso ahora. Inténtalo de nuevo en un momento.",
     howTitle: "Cómo funciona",
     how: [
       {
@@ -410,11 +415,11 @@ const es: Messages = {
       },
       {
         title: "Calcula",
-        body: "Modelos deterministas calculan LTV, CLTV, apalancamiento y capital — los números nunca se adivinan.",
+        body: "Modelos basados en fórmulas calculan LTV, CLTV, apalancamiento y capital — los números nunca se adivinan.",
       },
       {
         title: "Deriva",
-        body: "Con tu consentimiento, el escenario estructurado se envía a GRCRM para revisión con licencia y derivación a fuentes de capital.",
+        body: "Con tu consentimiento, el escenario estructurado se envía a nuestro CRM para revisión con licencia y derivación a fuentes de capital.",
       },
     ],
     solutionsTitle: "Soluciones",
@@ -440,9 +445,9 @@ const es: Messages = {
     ],
     aboutTitle: "Sobre nosotros",
     aboutLead:
-      "CADeed es un terminal de recepción de operaciones de capital privado en California. Lee una operación como lo haría una mesa de capital experimentada — y traza la estructura, los cálculos y lo que falta en segundos.",
+      "CADeed es una herramienta de revisión de operaciones de capital privado en California. Lee una operación como lo haría una mesa de capital experimentada — y traza la estructura, los cálculos y lo que falta en segundos.",
     aboutBody:
-      "Combinamos matemáticas de suscripción deterministas con comprensión del lenguaje, de modo que los números nunca se inventan — solo se acelera el razonamiento. Los escenarios se derivan a profesionales con licencia y a fuentes de capital privado a través de GRCRM.",
+      "Combinamos matemáticas de suscripción basadas en fórmulas con comprensión del lenguaje, de modo que los números nunca se inventan — solo se acelera el razonamiento. Los escenarios se derivan a profesionales con licencia y a fuentes de capital privado a través de nuestro CRM.",
     resourcesTitle: "Recursos",
     resources: [
       "Fundamentos de la prelación de gravámenes en California",
@@ -459,6 +464,7 @@ const es: Messages = {
     listening: "Escuchando… habla con naturalidad. Toca el micrófono o envía para parar.",
     exampleHint:
       "Ejemplo: Necesito $300K en efectivo de una propiedad en Los Ángeles que vale $1.2M. Debo $520K.",
+    ariaLabel: "Describe tu operación",
     ariaDictate: "Dicta tu operación",
     ariaStop: "Detener dictado",
     ariaSubmit: "Analizar operación",
@@ -476,7 +482,7 @@ const es: Messages = {
     likelyPath: "Ruta de capital probable",
     strong: "Sólido",
     moderate: "Moderado",
-    footer: "Una vista previa en vivo — tus números reales se calculan de la misma forma determinista.",
+    footer: "Una vista previa en vivo — tus números reales se calculan con las mismas fórmulas.",
     cta: "Describe tu propia operación",
     chipLabels: {
       Value: "Valor",
@@ -503,7 +509,9 @@ const es: Messages = {
     requestCallback: "Solicitar una llamada",
     sending: "Enviando…",
     done: "Gracias — recibimos tu solicitud y te contactaremos en breve.",
-    error: "No se pudo enviar tu solicitud.",
+    errorService: "No pudimos enviar tu solicitud. Inténtalo de nuevo o llama al",
+    consent: "Al enviar, aceptas que podamos contactarte por teléfono o correo electrónico sobre tu solicitud.",
+    privacy: "Privacidad",
     fieldName: "Nombre completo",
     fieldEmail: "Correo electrónico",
     fieldPhone: "Teléfono (opcional)",
@@ -632,11 +640,11 @@ const ru: Messages = {
     },
     links: {
       describeDeal: "Опишите сделку",
-      deterministicMath: "Детерминированная математика",
+      deterministicMath: "Расчёт по формулам",
       nextBestQuestion: "Следующий лучший вопрос",
       noApplicationForm: "Без заявки",
       numbersNeverInvented: "Числа никогда не выдумываются",
-      routedGrcrm: "Через GRCRM",
+      routedGrcrm: "Передача на проверку специалисту",
       cashOut: "Рефинансирование с наличными",
       secondDeed: "Второй deed of trust",
       fixFlip: "Fix & Flip / Бридж",
@@ -697,8 +705,9 @@ const ru: Messages = {
     placeholderContinue: "Ответьте или добавьте детали...",
     errorGeneric: "Что-то пошло не так при анализе сделки.",
     errorUnexpected: "Непредвиденная ошибка.",
+    errorService: "Не удалось обработать сообщение. Повторите попытку или позвоните по номеру",
     chatErrorReply:
-      "Извините, возникла заминка при обработке. Попробуйте переформулировать сделку.",
+      "Извините, сейчас не удалось обработать сообщение. Повторите попытку через минуту.",
     howTitle: "Как это работает",
     how: [
       {
@@ -711,7 +720,7 @@ const ru: Messages = {
       },
       {
         title: "Направьте",
-        body: "С вашего согласия структурированный сценарий отправляется в GRCRM для проверки лицензированным специалистом и подбора источника капитала.",
+        body: "С вашего согласия структурированный сценарий отправляется в наш CRM для проверки лицензированным специалистом и подбора источника капитала.",
       },
     ],
     solutionsTitle: "Решения",
@@ -737,9 +746,9 @@ const ru: Messages = {
     ],
     aboutTitle: "О нас",
     aboutLead:
-      "CADeed — это калифорнийский терминал приёма сделок для частного капитала. Он читает сделку так, как это сделал бы опытный капитал-деск — и за секунды выстраивает структуру, расчёты и недостающие детали.",
+      "CADeed — это калифорнийский инструмент разбора сделок для частного капитала. Он читает сделку так, как это сделал бы опытный капитал-деск — и за секунды выстраивает структуру, расчёты и недостающие детали.",
     aboutBody:
-      "Мы соединяем детерминированную андеррайтинговую математику с пониманием языка, поэтому числа никогда не выдумываются — ускоряется только рассуждение. Сценарии направляются лицензированным специалистам и источникам частного капитала через GRCRM.",
+      "Мы соединяем андеррайтинговую математику по формулам с пониманием языка, поэтому числа никогда не выдумываются — ускоряется только рассуждение. Сценарии направляются лицензированным специалистам и источникам частного капитала через наш CRM.",
     resourcesTitle: "Ресурсы",
     resources: [
       "Основы очерёдности залогов в Калифорнии",
@@ -756,6 +765,7 @@ const ru: Messages = {
     listening: "Слушаю… говорите свободно. Нажмите микрофон или отправьте, чтобы остановить.",
     exampleHint:
       "Пример: Мне нужно $300K наличными под недвижимость в Лос-Анджелесе стоимостью $1.2M. Я должен $520K.",
+    ariaLabel: "Опишите вашу сделку",
     ariaDictate: "Продиктуйте сделку",
     ariaStop: "Остановить диктовку",
     ariaSubmit: "Анализировать сделку",
@@ -773,7 +783,7 @@ const ru: Messages = {
     likelyPath: "Вероятный путь капитала",
     strong: "Сильный",
     moderate: "Умеренный",
-    footer: "Живой предпросмотр — ваши реальные числа считаются так же детерминированно.",
+    footer: "Живой предпросмотр — ваши реальные числа считаются по тем же формулам.",
     cta: "Опишите свою сделку",
     chipLabels: {
       Value: "Стоимость",
@@ -800,7 +810,9 @@ const ru: Messages = {
     requestCallback: "Запросить звонок",
     sending: "Отправка…",
     done: "Спасибо — мы получили вашу заявку и скоро свяжемся.",
-    error: "Не удалось отправить заявку.",
+    errorService: "Не удалось отправить заявку. Повторите попытку или позвоните по номеру",
+    consent: "Отправляя заявку, вы соглашаетесь, что мы можем связаться с вами по телефону или электронной почте по вашему запросу.",
+    privacy: "Конфиденциальность",
     fieldName: "Полное имя",
     fieldEmail: "Эл. почта",
     fieldPhone: "Телефон (необязательно)",

@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Check, Send, Mail } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Check, Send } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { CAN_SPAM_NOTE, COMPLIANCE_DISCLAIMER } from "@/lib/compliance-rules";
+import { COMPLIANCE_DISCLAIMER } from "@/lib/compliance-rules";
+import Field, { inputClass as fieldInputClass } from "@/components/FormField";
+import FormError from "@/components/FormError";
+import {
+  EMAIL_ERROR,
+  PHONE_ERROR,
+  PHONE_HINT,
+  PHONE_PATTERN,
+  RequestFailure,
+  isEmailValid,
+  isPhoneValid,
+  postJson,
+} from "@/lib/forms";
 
 const PROPERTY_TYPES = [
   "SFR (1-unit)",
@@ -23,9 +34,7 @@ const PROGRAMS = [
   "2nd deed of trust",
 ];
 
-const inputClass =
-  "w-full rounded-xl border border-hairline bg-white/80 px-3.5 py-2.5 text-[14px] text-navy outline-none transition-colors placeholder:text-navy-muted/60 focus:border-navy/30";
-const labelClass = "mb-1.5 block text-[12.5px] font-semibold uppercase tracking-wide text-navy-muted";
+const inputClass = fieldInputClass();
 
 interface FormState {
   companyName: string;
@@ -78,6 +87,9 @@ export default function ForCapitalSources() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [failure, setFailure] = useState<RequestFailure | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const inFlight = useRef(false);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -92,39 +104,41 @@ export default function ForCapitalSources() {
     });
   }
 
-  const canSend =
-    !!form.companyName.trim() &&
-    /\S+@\S+\.\S+/.test(form.email) &&
-    !submitting &&
-    !submitted;
+  const errors = {
+    companyName: form.companyName.trim() ? null : "Please enter your company name.",
+    email: isEmailValid(form.email) ? null : EMAIL_ERROR,
+    phone: isPhoneValid(form.phone) ? null : PHONE_ERROR,
+  };
 
-  async function submit() {
-    if (!canSend) return;
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (inFlight.current || submitted) return;
+    if (errors.companyName || errors.email || errors.phone) {
+      setShowErrors(true);
+      return;
+    }
+    inFlight.current = true;
     setSubmitting(true);
+    setFailure(null);
     setMessage(null);
     try {
-      const res = await fetch("/api/capital-source", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          states: form.states,
-          counties: form.counties,
-          maxLTV: form.maxLTV,
-          maxCLTV: form.maxCLTV,
-          minLoanAmount: form.minLoanAmount,
-          maxLoanAmount: form.maxLoanAmount,
-          ownerOccupiedAllowed: toBoolOrNull(form.ownerOccupiedAllowed),
-          businessPurposeOnly: toBoolOrNull(form.businessPurposeOnly),
-        }),
+      const data = await postJson<{ message?: string }>("/api/capital-source", {
+        ...form,
+        states: form.states,
+        counties: form.counties,
+        maxLTV: form.maxLTV,
+        maxCLTV: form.maxCLTV,
+        minLoanAmount: form.minLoanAmount,
+        maxLoanAmount: form.maxLoanAmount,
+        ownerOccupiedAllowed: toBoolOrNull(form.ownerOccupiedAllowed),
+        businessPurposeOnly: toBoolOrNull(form.businessPurposeOnly),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Could not submit your profile.");
       setSubmitted(true);
       setMessage(data.message ?? "Profile received.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not submit your profile.");
+      setFailure(err instanceof RequestFailure ? err : new RequestFailure("service", "unknown"));
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }
@@ -140,23 +154,18 @@ export default function ForCapitalSources() {
           >
             <ArrowLeft size={15} /> Back to the terminal
           </a>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mt-6 max-w-2xl"
-          >
+          <div className="mt-6 max-w-2xl">
             <span className="inline-block rounded-full border border-hairline bg-white/60 px-3.5 py-1.5 text-[12.5px] font-medium tracking-wide text-navy-muted">
               For Capital Sources
             </span>
             <h1 className="mt-5 text-balance text-[30px] font-semibold leading-[1.1] tracking-tight text-navy sm:text-[40px]">
-              Receive structured California private lending scenarios that match your lending box.
+              Receive structured private lending scenarios that match your lending box.
             </h1>
             <p className="mt-4 text-[16px] leading-relaxed text-navy-muted">
-              Tell us your box once. When a California scenario fits, GRCRM routes it to you —
-              structured, calculated, and consent-backed. No spray-and-pray lead lists.
+              Tell us your box once. When a scenario fits, our team routes it to you —
+              structured, calculated, and consent-backed. No mass lead lists.
             </p>
-          </motion.div>
+          </div>
         </section>
 
         <section className="mx-auto mt-10 max-w-3xl pb-8">
@@ -168,71 +177,96 @@ export default function ForCapitalSources() {
               </div>
             </div>
           ) : (
-            <div className="glass-card space-y-6 rounded-card p-6 shadow-lift sm:p-8">
+            <form noValidate onSubmit={submit} className="glass-card space-y-6 rounded-card p-6 shadow-lift sm:p-8">
               {/* Contact */}
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Company name *</label>
+                <Field label="Company name" required error={showErrors ? errors.companyName : null}>
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
+                    name="organization"
+                    autoComplete="organization"
                     value={form.companyName}
                     onChange={(e) => set("companyName", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Contact person</label>
+                  )}
+                </Field>
+                <Field label="Contact person" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
+                    name="name"
+                    autoComplete="name"
                     value={form.contactPerson}
                     onChange={(e) => set("contactPerson", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Email *</label>
+                  )}
+                </Field>
+                <Field label="Email" required error={showErrors ? errors.email : null}>
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
                     value={form.email}
                     onChange={(e) => set("email", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Phone</label>
+                  )}
+                </Field>
+                <Field label="Phone" hint={PHONE_HINT} error={showErrors ? errors.phone : null}>
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
+                    type="tel"
+                    name="phone"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    pattern={PHONE_PATTERN}
                     value={form.phone}
                     onChange={(e) => set("phone", e.target.value)}
                   />
-                </div>
+                  )}
+                </Field>
               </div>
 
               {/* Geography */}
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>States (comma separated)</label>
+                <Field label="States (comma separated)" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     value={form.states}
                     onChange={(e) => set("states", e.target.value)}
                     placeholder="CA"
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Counties (optional)</label>
+                  )}
+                </Field>
+                <Field label="Counties (optional)" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     value={form.counties}
                     onChange={(e) => set("counties", e.target.value)}
                     placeholder="Los Angeles, Orange, San Diego…"
                   />
-                </div>
+                  )}
+                </Field>
               </div>
 
               {/* Box */}
               <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className={labelClass}>Lien position</label>
+                <Field label="Lien position" >
+                  {(c) => (
                   <select
+{...c}
                     className={inputClass}
                     value={form.lienPositions}
                     onChange={(e) => set("lienPositions", e.target.value)}
@@ -242,46 +276,56 @@ export default function ForCapitalSources() {
                     <option value="2nd">2nd only</option>
                     <option value="Both">Both</option>
                   </select>
-                </div>
-                <div>
-                  <label className={labelClass}>Max LTV (%)</label>
+                  )}
+                </Field>
+                <Field label="Max LTV (%)" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     inputMode="numeric"
                     value={form.maxLTV}
                     onChange={(e) => set("maxLTV", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Max CLTV (%)</label>
+                  )}
+                </Field>
+                <Field label="Max CLTV (%)" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     inputMode="numeric"
                     value={form.maxCLTV}
                     onChange={(e) => set("maxCLTV", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Min loan amount ($)</label>
+                  )}
+                </Field>
+                <Field label="Min loan amount ($)" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     inputMode="numeric"
                     value={form.minLoanAmount}
                     onChange={(e) => set("minLoanAmount", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Max loan amount ($)</label>
+                  )}
+                </Field>
+                <Field label="Max loan amount ($)" >
+                  {(c) => (
                   <input
+{...c}
                     className={inputClass}
                     inputMode="numeric"
                     value={form.maxLoanAmount}
                     onChange={(e) => set("maxLoanAmount", e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className={labelClass}>Expected response time</label>
+                  )}
+                </Field>
+                <Field label="Expected response time" >
+                  {(c) => (
                   <select
+{...c}
                     className={inputClass}
                     value={form.expectedResponseTime}
                     onChange={(e) => set("expectedResponseTime", e.target.value)}
@@ -292,12 +336,13 @@ export default function ForCapitalSources() {
                     <option value="48 hours">Within 48 hours</option>
                     <option value="2-3 days">2–3 days</option>
                   </select>
-                </div>
+                  )}
+                </Field>
               </div>
 
               {/* Property types */}
-              <div>
-                <label className={labelClass}>Property types</label>
+              <div role="group" aria-labelledby="cs-proptypes">
+                <p id="cs-proptypes" className="mb-1.5 block text-[12.5px] font-semibold uppercase tracking-wide text-navy-muted">Property types</p>
                 <div className="flex flex-wrap gap-2">
                   {PROPERTY_TYPES.map((t) => (
                     <Chip
@@ -311,8 +356,8 @@ export default function ForCapitalSources() {
               </div>
 
               {/* Programs */}
-              <div>
-                <label className={labelClass}>Programs</label>
+              <div role="group" aria-labelledby="cs-programs">
+                <p id="cs-programs" className="mb-1.5 block text-[12.5px] font-semibold uppercase tracking-wide text-navy-muted">Programs</p>
                 <div className="flex flex-wrap gap-2">
                   {PROGRAMS.map((p) => (
                     <Chip
@@ -327,9 +372,10 @@ export default function ForCapitalSources() {
 
               {/* Flags */}
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Owner-occupied allowed?</label>
+                <Field label="Owner-occupied allowed?" >
+                  {(c) => (
                   <select
+{...c}
                     className={inputClass}
                     value={form.ownerOccupiedAllowed}
                     onChange={(e) => set("ownerOccupiedAllowed", e.target.value)}
@@ -338,10 +384,12 @@ export default function ForCapitalSources() {
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
                   </select>
-                </div>
-                <div>
-                  <label className={labelClass}>Business-purpose only?</label>
+                  )}
+                </Field>
+                <Field label="Business-purpose only?" >
+                  {(c) => (
                   <select
+{...c}
                     className={inputClass}
                     value={form.businessPurposeOnly}
                     onChange={(e) => set("businessPurposeOnly", e.target.value)}
@@ -350,46 +398,48 @@ export default function ForCapitalSources() {
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
                   </select>
-                </div>
+                  )}
+                </Field>
               </div>
 
-              <div>
-                <label className={labelClass}>Notes</label>
+              <Field label="Notes" >
+                {(c) => (
                 <textarea
+{...c}
                   className={`${inputClass} min-h-[96px] resize-y`}
                   value={form.notes}
                   onChange={(e) => set("notes", e.target.value)}
                   placeholder="Anything else about your box, overlays, or process…"
                 />
-              </div>
-
-              <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-white/60 p-4">
-                <Mail size={16} className="mt-0.5 shrink-0 text-navy-muted" />
-                <p className="text-[12.5px] leading-relaxed text-navy-muted">{CAN_SPAM_NOTE}</p>
-              </div>
+                )}
+              </Field>
 
               <button
-                type="button"
-                onClick={submit}
-                disabled={!canSend}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-[14px] font-semibold text-white transition-all sm:w-auto ${
-                  canSend
-                    ? "bg-navy shadow-soft hover:-translate-y-0.5 hover:bg-navy-soft"
-                    : "cursor-not-allowed bg-navy/30"
+                type="submit"
+                disabled={submitting}
+                className={`inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-[14px] font-semibold text-white transition-all sm:w-auto ${
+                  submitting
+                    ? "cursor-not-allowed bg-navy/40"
+                    : "bg-navy shadow-soft hover:-translate-y-0.5 hover:bg-navy-soft"
                 }`}
               >
                 <Send size={16} />
                 {submitting ? "Submitting…" : "Submit lending box"}
               </button>
 
-              {message && !submitted && (
-                <p className="text-[13px] font-medium text-navy-muted">{message}</p>
-              )}
+              <FormError failure={failure} />
+
+              <p className="text-[12.5px] leading-relaxed text-navy-muted">
+                By sending, you agree we may contact you by phone or email about your request.{" "}
+                <a href="/legal#privacy" className="underline underline-offset-2 hover:text-navy">
+                  Privacy
+                </a>
+              </p>
 
               <p className="text-[12px] leading-relaxed text-navy-muted/80">
                 {COMPLIANCE_DISCLAIMER}
               </p>
-            </div>
+            </form>
           )}
         </section>
       </main>
@@ -411,7 +461,8 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-2 text-[13px] font-medium transition-colors ${
+      aria-pressed={active}
+      className={`min-h-[44px] rounded-full border px-3.5 py-2 text-[13px] font-medium transition-colors ${
         active
           ? "border-navy bg-navy text-white"
           : "border-hairline bg-white/70 text-navy-soft hover:border-navy/20"

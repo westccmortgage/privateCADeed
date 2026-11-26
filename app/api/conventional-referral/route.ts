@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deliveryResponse } from "@/lib/lead-delivery";
 import { sendNotificationEmail } from "@/lib/notify";
 import {
   buildScenarioPayload,
@@ -109,17 +110,15 @@ export async function POST(request: Request) {
     email, // reply-to → answer the lead directly
   );
 
-  return NextResponse.json(
+  return deliveryResponse(
+    "conventional-referral",
+    { forwarded: grcrm.sent, emailed: emailResult.sent },
     {
-      ok: true,
       scenarioId: payload.scenarioId,
       configured: grcrm.configured,
-      forwarded: grcrm.sent,
-      emailed: emailResult.sent,
       message:
         "Thanks — a licensed loan officer will reach out about conventional options. " +
         "This is not an offer or a commitment to lend.",
     },
-    { status: 200 },
   );
 }

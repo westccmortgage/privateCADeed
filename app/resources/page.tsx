@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { ArrowRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 
-export const metadata: Metadata = {
-  title: "Resources — CADeed.com",
-  description:
-    "Learn California private-capital fundamentals: lien position, CLTV and equity, business-purpose vs. consumer loans, construction completion, exit strategy — plus a plain-English glossary.",
-};
+export const metadata: Metadata = pageMeta(
+  "/resources",
+  "Resources — CADeed.com",
+  "Learn California private-capital fundamentals: lien position, CLTV and equity, business-purpose vs. consumer loans, construction completion, exit strategy — plus a plain-English glossary.",
+);
 
 type Body = Array<string | { list: string[] }>;
 interface Article {

@@ -32,6 +32,7 @@ async function viaResend(
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(8000),
     });
     return res.ok
       ? { sent: true, provider: "resend" }

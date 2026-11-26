@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { ShieldCheck, Calculator, Route, ArrowRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import { COMPANY, telHref } from "@/lib/company";
 
-export const metadata: Metadata = {
-  title: "Company — CADeed.com",
-  description:
-    "About CADeed.com and West Coast Capital Mortgage Inc. — how the deterministic private-capital engine underwrites, the capital paths it maps, and our compliance and licensing posture.",
-};
+export const metadata: Metadata = pageMeta(
+  "/company",
+  "Company — CADeed.com",
+  "About CADeed.com and West Coast Capital Mortgage — how the private-capital engine reviews a deal, the capital paths it maps, and our compliance and licensing posture.",
+);
 
 const PILLARS = [
   {
     icon: Calculator,
-    title: "Deterministic underwriting",
-    body: "Claude understands the language; TypeScript computes every number. Results are reproducible and auditable — never invented.",
+    title: "Formula-based underwriting",
+    body: "Our review system reads your description; fixed, auditable formulas compute every number. Results are reproducible — never invented.",
   },
   {
     icon: Route,
-    title: "Routed through GRCRM",
-    body: "We don't email lenders directly. Consent-backed, structured scenarios flow to GRCRM for licensed review and capital-source matching.",
+    title: "Routed for licensed review",
+    body: "We don't email lenders directly. Consent-backed, structured scenarios flow into our CRM for licensed review and capital-source matching.",
   },
   {
     icon: ShieldCheck,
@@ -49,9 +50,9 @@ function Block({ item }: { item: string | { list: string[] } }) {
 }
 
 const ABOUT: Body = [
-  `CADeed is a California deal intake terminal for private capital, operated by ${COMPANY.legalName} (NMLS #${COMPANY.nmls}). It reads a real estate financing scenario the way an experienced capital desk would — in plain English — then maps the structure, the math, and the missing pieces in seconds.`,
-  `Our premise is simple: software should accelerate the reasoning around a deal, not invent the numbers. So we split the work in two. A language model interprets what you wrote and extracts the facts. Deterministic code does every calculation. You get a clear, preliminary read on where a deal can go — and exactly what is still needed to get it there — without a long application form or a sales call.`,
-  `CADeed does not lend, approve, or commit funds. It prepares a structured, consent-backed scenario and routes it, through GRCRM, to a licensed professional and to private capital sources whose lending box fits.`,
+  `CADeed is a California deal review tool for private capital, operated by ${COMPANY.legalName} (NMLS #${COMPANY.nmls}). It reads a real estate financing scenario the way an experienced capital desk would — in plain English — then maps the structure, the math, and the missing pieces in seconds.`,
+  `Our premise is simple: software should accelerate the reasoning around a deal, not invent the numbers. So we split the work in two. Our review system interprets what you wrote and extracts the facts. Deterministic code does every calculation. You get a clear, preliminary read on where a deal can go — and exactly what is still needed to get it there — without a long application form or a sales call.`,
+  `CADeed does not lend, approve, or commit funds. It prepares a structured, consent-backed scenario and routes it, through our CRM, to a licensed professional and to private capital sources whose lending box fits.`,
 ];
 
 const UNDERWRITING: Body = [
@@ -89,8 +90,8 @@ export default function Company() {
   return (
     <PageShell
       eyebrow="Company"
-      title="A California deal intake terminal for private capital."
-      intro="We pair deterministic underwriting math with language understanding, so the numbers are never invented — only the reasoning is accelerated."
+      title="A California deal review tool for private capital."
+      intro="We pair formula-based underwriting math with language understanding, so the numbers are never invented — only the reasoning is accelerated."
     >
       <div className="grid gap-4 sm:grid-cols-3">
         {PILLARS.map((p) => (
@@ -154,9 +155,9 @@ export default function Company() {
             professional and may not suit all capital sources.
           </p>
           <p className="text-[14px] leading-relaxed text-navy-muted">
-            {COMPANY.legalName} · NMLS&nbsp;#{COMPANY.nmls} · {COMPANY.mailingAddress} ·{" "}
-            <a href={telHref(COMPANY.phoneOffice)} className="font-medium text-navy underline-offset-2 hover:underline">
-              {COMPANY.phoneOffice}
+            {COMPANY.licenseLine} · {COMPANY.mailingAddress} ·{" "}
+            <a href={telHref(COMPANY.phoneOffice)} className="whitespace-nowrap font-medium text-navy underline-offset-2 hover:underline">
+              {COMPANY.phoneOfficeDisplay}
             </a>
             . Full details on our{" "}
             <a href="/legal" className="font-medium text-navy underline-offset-2 hover:underline">

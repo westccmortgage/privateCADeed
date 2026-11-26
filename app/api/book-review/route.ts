@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deliveryResponse } from "@/lib/lead-delivery";
 import { sendNotificationEmail } from "@/lib/notify";
 import { sendLeadToGRCRM } from "@/lib/grcrm-client";
 
@@ -50,13 +51,9 @@ export async function POST(request: Request) {
     email, // reply-to → answer the lead directly
   );
 
-  return NextResponse.json(
-    {
-      ok: true,
-      forwarded: grcrm.sent,
-      emailed: result.sent,
-      message: "Thanks — we received your request and will reach out shortly.",
-    },
-    { status: 200 },
+  return deliveryResponse(
+    "book-review",
+    { forwarded: grcrm.sent, emailed: result.sent },
+    { message: "Thanks — we received your request and will reach out shortly." },
   );
 }

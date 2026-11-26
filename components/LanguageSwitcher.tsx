@@ -34,7 +34,7 @@ export default function LanguageSwitcher({ variant = "bar" }: LanguageSwitcherPr
               key={l}
               type="button"
               onClick={() => setLocale(l as Locale)}
-              className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
+              className={`min-h-[40px] min-w-[44px] rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
                 locale === l
                   ? "bg-navy text-white"
                   : "bg-white/70 text-navy/70 hover:text-navy"
@@ -53,6 +53,7 @@ export default function LanguageSwitcher({ variant = "bar" }: LanguageSwitcherPr
       <button
         type="button"
         aria-label={t.switcher.label}
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] font-medium text-navy/70 transition-colors hover:text-navy"
       >

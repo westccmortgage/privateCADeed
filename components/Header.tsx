@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ChevronDown, ArrowRight } from "lucide-react";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
@@ -148,16 +149,45 @@ function buildNav(t: Messages): NavItem[] {
 const SHADE = "[text-shadow:0_0.5px_1px_rgb(7_26_61_/_0.10)]";
 
 export default function Header() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const NAV = buildNav(t);
+  const pathname = usePathname();
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const closeMenu = useCallback(() => setOpen(false), []);
+
+  // Close the mobile menu on route change.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // While the mobile menu is open: lock page scroll on <html> only, close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      root.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const activeItem = NAV.find((n) => n.label === active && n.columns);
 
   return (
     <header
+      lang={locale}
       className="sticky top-0 z-50"
       onMouseLeave={() => setActive(null)}
     >
@@ -223,10 +253,13 @@ export default function Header() {
 
           {/* Mobile toggle */}
           <button
+            ref={toggleRef}
             type="button"
-            aria-label="Toggle menu"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            aria-controls="mobile-menu"
             onClick={() => setOpen((v) => !v)}
-            className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-navy md:hidden"
+            className="-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-full text-navy md:hidden"
           >
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -246,7 +279,7 @@ export default function Header() {
               <div className="mx-auto grid max-w-engine gap-x-12 gap-y-8 px-5 py-9 sm:px-8 md:grid-cols-[repeat(auto-fit,minmax(180px,auto))]">
                 {activeItem.columns.map((col) => (
                   <div key={col.title}>
-                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa7bd]">
+                    <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#9aa7bd]">
                       {col.title}
                     </p>
                     <ul className="space-y-2.5">
@@ -274,15 +307,30 @@ export default function Header() {
         </AnimatePresence>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu: tap-to-close backdrop + panel */}
       <AnimatePresence>
         {open && (
           <motion.div
+            key="mobile-backdrop"
+            data-testid="mobile-backdrop"
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={closeMenu}
+            className="fixed inset-x-0 bottom-0 top-12 -z-10 bg-navy/35 md:hidden"
+          />
+        )}
+        {open && (
+          <motion.div
+            key="mobile-panel"
+            id="mobile-menu"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
-            className="max-h-[calc(100vh-3rem)] overflow-y-auto border-b border-[#e7edf5] bg-white/95 backdrop-blur-xl md:hidden"
+            className="max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain border-b border-[#e7edf5] bg-white/95 backdrop-blur-xl md:hidden"
           >
             <div className="mx-auto max-w-engine px-5 py-3 sm:px-8">
               {NAV.map((item) => {
@@ -291,10 +339,11 @@ export default function Header() {
                   <div key={item.label} className="border-b border-[#eef2f8] last:border-0">
                     <button
                       type="button"
+                      aria-expanded={item.columns ? isOpen : undefined}
                       onClick={() =>
                         setOpenSection((s) => (s === item.label ? null : item.label))
                       }
-                      className={`flex w-full items-center justify-between py-3 text-[15px] font-medium text-navy ${SHADE}`}
+                      className={`flex min-h-[48px] w-full items-center justify-between py-3 text-[15px] font-medium text-navy ${SHADE}`}
                     >
                       {item.label}
                       {item.columns && (
@@ -318,16 +367,16 @@ export default function Header() {
                           <div className="pb-3 pl-2">
                             {item.columns.map((col) => (
                               <div key={col.title} className="mb-2">
-                                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9aa7bd]">
+                                <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#9aa7bd]">
                                   {col.title}
                                 </p>
-                                <ul className="space-y-1.5">
+                                <ul>
                                   {col.links.map((sub) => (
                                     <li key={sub.label}>
                                       <a
                                         href={sub.href}
                                         onClick={() => setOpen(false)}
-                                        className="block py-1 text-[14.5px] font-medium text-navy/75 hover:text-navy"
+                                        className="flex min-h-[44px] items-center py-2 text-[15px] font-medium text-navy/80 hover:text-navy"
                                       >
                                         {sub.label}
                                       </a>
@@ -343,13 +392,31 @@ export default function Header() {
                   </div>
                 );
               })}
-              <div className="mt-1 border-t border-[#eef2f8]">
+              <ul className="border-b border-[#eef2f8] py-1">
+                {[
+                  { label: t.header.links.faq, href: "/faq" },
+                  { label: t.header.links.forBorrowers, href: "/for-borrowers" },
+                  { label: t.header.links.forBrokers, href: "/for-brokers" },
+                  { label: t.header.links.legalPrivacy, href: "/legal" },
+                ].map((l) => (
+                  <li key={l.href}>
+                    <a
+                      href={l.href}
+                      onClick={() => setOpen(false)}
+                      className="flex min-h-[48px] items-center text-[15px] font-medium text-navy hover:text-navy"
+                    >
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-1">
                 <LanguageSwitcher variant="block" />
               </div>
               <a
                 href="/#book"
                 onClick={() => setOpen(false)}
-                className="mt-2 block rounded-full bg-navy px-3 py-2.5 text-center text-[15px] font-medium text-white"
+                className="mt-2 mb-2 block rounded-full bg-navy px-3 py-3 text-center text-[15px] font-medium text-white"
               >
                 {t.header.cta}
               </a>

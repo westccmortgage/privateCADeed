@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Compass, ArrowUpRight, Check, ArrowRight, Send } from "lucide-react";
 import { COMPANY, telHref } from "@/lib/company";
+import {
+  EMAIL_ERROR,
+  NAME_ERROR,
+  PHONE_ERROR,
+  PHONE_HINT,
+  PHONE_PATTERN,
+  RequestFailure,
+  isEmailValid,
+  isPhoneValid,
+  postJson,
+} from "@/lib/forms";
+import Field, { inputClass } from "@/components/FormField";
+import FormError from "@/components/FormError";
 import type { ConventionalReferral, ExtractedScenario } from "@/lib/types";
 
 // Conventional / agency channel (override in Netlify with NEXT_PUBLIC_CONVENTIONAL_URL).
 const CONVENTIONAL_URL =
   process.env.NEXT_PUBLIC_CONVENTIONAL_URL || "https://westcoastcapitalmortgage.com";
-
-const inputClass =
-  "w-full rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 text-[14px] text-white outline-none transition-colors placeholder:text-white/45 focus:border-white/35";
 
 export default function ConventionalReferralCard({
   referral,
@@ -24,36 +34,42 @@ export default function ConventionalReferralCard({
   const [showForm, setShowForm] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const emailValid = /\S+@\S+\.\S+/.test(form.email);
-  const canSend = !!form.name.trim() && emailValid && consent && !sending;
+  const [failure, setFailure] = useState<RequestFailure | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const inFlight = useRef(false);
+
+  const errors = {
+    name: form.name.trim() ? null : NAME_ERROR,
+    email: isEmailValid(form.email) ? null : EMAIL_ERROR,
+    phone: isPhoneValid(form.phone) ? null : PHONE_ERROR,
+  };
 
   function set<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
   async function submit() {
-    if (!canSend) return;
+    if (inFlight.current) return;
+    if (errors.name || errors.email || errors.phone || !consent) {
+      setShowErrors(true);
+      return;
+    }
+    inFlight.current = true;
     setSending(true);
-    setError(null);
+    setFailure(null);
     try {
-      const res = await fetch("/api/conventional-referral", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          consentGiven: consent,
-          reasons: referral.reasons,
-          extractedScenario: scenario,
-        }),
+      await postJson("/api/conventional-referral", {
+        ...form,
+        consentGiven: consent,
+        reasons: referral.reasons,
+        extractedScenario: scenario,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Could not send your request.");
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send your request.");
+      setFailure(err instanceof RequestFailure ? err : new RequestFailure("service", "unknown"));
     } finally {
+      inFlight.current = false;
       setSending(false);
     }
   }
@@ -99,9 +115,9 @@ export default function ConventionalReferralCard({
         </a>
         <a
           href={telHref(COMPANY.phoneOffice)}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-5 py-2.5 text-[14px] font-medium text-white/90 transition-colors hover:border-white/50"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-white/25 px-5 py-2.5 text-[14px] font-medium text-white/90 transition-colors hover:border-white/50"
         >
-          Call {COMPANY.phoneOffice}
+          Call {COMPANY.phoneOfficeDisplay}
         </a>
       </div>
 
@@ -119,7 +135,7 @@ export default function ConventionalReferralCard({
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            className="text-[13px] font-medium text-white/70 underline-offset-2 transition-colors hover:text-white hover:underline"
+            className="min-h-[44px] text-[13px] font-medium text-white/80 underline-offset-2 transition-colors hover:text-white hover:underline"
           >
             Prefer we call you? Request a callback →
           </button>
@@ -129,52 +145,92 @@ export default function ConventionalReferralCard({
               Request a callback
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <input
-                className={inputClass}
-                placeholder="Full name"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-              />
-              <input
-                className={inputClass}
-                type="email"
-                placeholder="Email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-              />
+              <Field label="Full name" required tone="dark" error={showErrors ? errors.name : null}>
+                {(c) => (
+                  <input
+                    {...c}
+                    className={inputClass("dark")}
+                    name="name"
+                    autoComplete="name"
+                    value={form.name}
+                    onChange={(e) => set("name", e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Email" required tone="dark" error={showErrors ? errors.email : null}>
+                {(c) => (
+                  <input
+                    {...c}
+                    className={inputClass("dark")}
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={form.email}
+                    onChange={(e) => set("email", e.target.value)}
+                  />
+                )}
+              </Field>
             </div>
-            <input
-              className={`${inputClass} mt-3`}
-              placeholder="Phone (optional)"
-              value={form.phone}
-              onChange={(e) => set("phone", e.target.value)}
-            />
-            <label className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-white/70">
+            <Field
+              label="Phone (optional)"
+              tone="dark"
+              className="mt-3"
+              hint={PHONE_HINT}
+              error={showErrors ? errors.phone : null}
+            >
+              {(c) => (
+                <input
+                  {...c}
+                  className={inputClass("dark")}
+                  type="tel"
+                  name="phone"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  pattern={PHONE_PATTERN}
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                />
+              )}
+            </Field>
+            <label className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-white/75">
               <input
                 type="checkbox"
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
-                className="mt-0.5 shrink-0"
+                aria-required="true"
+                className="mt-0.5 h-5 w-5 shrink-0"
               />
               <span>
                 I agree to be contacted by {COMPANY.legalName} about conventional financing
-                options. This is not an offer or a commitment to lend.
+                options. This is not an offer or a commitment to lend. <span aria-hidden="true">*</span>
               </span>
             </label>
-            {error && <p className="mt-2 text-[13px] font-medium text-red-300">{error}</p>}
+            {showErrors && !consent && (
+              <p className="mt-1 text-[12.5px] font-medium text-red-300">
+                Please tick the box to agree.
+              </p>
+            )}
+            <FormError failure={failure} tone="dark" className="mt-2" />
             <button
               type="button"
               onClick={submit}
-              disabled={!canSend}
-              className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-semibold transition-transform ${
-                canSend
-                  ? "bg-gold text-navy hover:-translate-y-0.5"
-                  : "cursor-not-allowed bg-white/30 text-white/60"
+              disabled={sending}
+              className={`mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-semibold transition-transform ${
+                sending
+                  ? "cursor-not-allowed bg-white/30 text-white/60"
+                  : "bg-gold text-navy hover:-translate-y-0.5"
               }`}
             >
               {sending ? "Sending…" : "Request a callback"}
               {sending ? <Send size={16} /> : <ArrowRight size={17} />}
             </button>
+            <p className="mt-3 text-center text-[12.5px] leading-relaxed text-white/70">
+              By sending, you agree we may contact you by phone or email about your request.{" "}
+              <a href="/legal#privacy" className="underline underline-offset-2 hover:text-white">
+                Privacy
+              </a>
+            </p>
           </div>
         )}
       </div>

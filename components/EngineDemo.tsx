@@ -95,9 +95,18 @@ const PARTICLES = Array.from({ length: 8 }, (_, i) => {
 export default function EngineDemo({ onTry }: { onTry?: (key: string) => void }) {
   const { t } = useLocale();
   const [active, setActive] = useState(0);
-  const [typed, setTyped] = useState("");
-  const [phase, setPhase] = useState<"typing" | "extract" | "result">("typing");
-  const [metricNow, setMetricNow] = useState(0);
+  // State is tagged with the scenario index it belongs to, so the first render
+  // after a scenario switch never shows the previous example's values.
+  type Phase = "typing" | "extract" | "result";
+  const [typedState, setTypedState] = useState({ idx: 0, text: "" });
+  const [phaseState, setPhaseState] = useState<{ idx: number; phase: Phase }>({
+    idx: 0,
+    phase: "typing",
+  });
+  const [metricState, setMetricState] = useState({ idx: 0, v: 0 });
+  const typed = typedState.idx === active ? typedState.text : "";
+  const phase: Phase = phaseState.idx === active ? phaseState.phase : "typing";
+  const metricNow = metricState.idx === active && phase === "result" ? metricState.v : 0;
   const autoRef = useRef(true);
 
   // Cursor parallax tilt.
@@ -107,19 +116,19 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
   const sc = SCENARIOS[active];
 
   useEffect(() => {
-    setTyped("");
-    setPhase("typing");
+    setTypedState({ idx: active, text: "" });
+    setPhaseState({ idx: active, phase: "typing" });
     const text = sc.text;
     let i = 0;
     const typer = setInterval(() => {
       i += 1;
-      setTyped(text.slice(0, i));
+      setTypedState({ idx: active, text: text.slice(0, i) });
       if (i >= text.length) clearInterval(typer);
     }, TYPE_MS);
 
     const base = text.length * TYPE_MS;
-    const tExtract = setTimeout(() => setPhase("extract"), base + 250);
-    const tResult = setTimeout(() => setPhase("result"), base + 950);
+    const tExtract = setTimeout(() => setPhaseState({ idx: active, phase: "extract" }), base + 250);
+    const tResult = setTimeout(() => setPhaseState({ idx: active, phase: "result" }), base + 950);
     const tNext = setTimeout(() => {
       if (autoRef.current) setActive((a) => (a + 1) % SCENARIOS.length);
     }, base + 4800);
@@ -134,7 +143,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
 
   useEffect(() => {
     if (phase !== "result") {
-      setMetricNow(0);
+      setMetricState({ idx: active, v: 0 });
       return;
     }
     const target = sc.metricValue;
@@ -144,7 +153,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
     const tick = (t: number) => {
       const p = Math.min((t - start) / dur, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      setMetricNow(target * eased);
+      setMetricState({ idx: active, v: target * eased });
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -211,7 +220,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
           <span className="h-2.5 w-2.5 rounded-full bg-[#e5b3b0]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#e7d3a1]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#bcd6b5]" />
-          <span className="ml-2 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
+          <span className="ml-2 inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
             <Sparkles size={12} className="text-gold" /> {t.demo.caption}
           </span>
           {/* autoplay progress */}
@@ -251,7 +260,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
               </p>
             </div>
 
-            <p className="mt-5 mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
+            <p className="mt-5 mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
               {t.demo.extracted}
             </p>
             <div className="grid grid-cols-2 gap-2.5">
@@ -272,7 +281,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                   }}
                   className="rounded-xl border border-hairline bg-white/70 px-3.5 py-2.5"
                 >
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-navy-muted">
+                  <p className="text-[12px] font-medium uppercase tracking-wide text-navy-muted">
                     {t.demo.chipLabels[chip.label] ?? chip.label}
                   </p>
                   <p className="mt-0.5 text-[15px] font-semibold tracking-tight text-navy">
@@ -329,7 +338,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-navy-muted">
+                <span className="flex items-center gap-1 text-[12px] font-medium uppercase tracking-wide text-navy-muted">
                   <Gauge size={12} /> {t.demo.metricLabels[sc.metricLabel] ?? sc.metricLabel}
                 </span>
                 <motion.span
@@ -339,18 +348,17 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                   transition={{ duration: 0.5, times: [0, 0.6, 1] }}
                   className="text-[30px] font-semibold tracking-tight text-navy"
                 >
-                  {result ? metricNow.toFixed(1) : "0.0"}%
+                  {result && metricNow > 0 ? `${metricNow.toFixed(1)}%` : "—"}
                 </motion.span>
               </div>
             </div>
 
-            <AnimatePresence mode="wait">
+            <div className="w-full">
               {result && (
                 <motion.div
                   key={sc.key}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
                   transition={{ type: "spring", stiffness: 260, damping: 22 }}
                   className="mt-5 w-full rounded-2xl border border-navy/10 bg-navy p-4 text-white"
                 >
@@ -358,7 +366,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10">
                       <Route size={14} className="text-gold-soft" />
                     </span>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-white/55">
+                    <p className="text-[12px] font-medium uppercase tracking-wide text-white/55">
                       {t.demo.likelyPath}
                     </p>
                   </div>
@@ -366,7 +374,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                     {sc.path}
                   </p>
                   <span
-                    className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                    className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-semibold ${
                       sc.strength === "Strong"
                         ? "border-emerald-300/40 bg-emerald-400/15 text-emerald-200"
                         : "border-amber-300/40 bg-amber-400/15 text-amber-100"
@@ -376,7 +384,7 @@ export default function EngineDemo({ onTry }: { onTry?: (key: string) => void })
                   </span>
                 </motion.div>
               )}
-            </AnimatePresence>
+            </div>
           </div>
         </div>
 

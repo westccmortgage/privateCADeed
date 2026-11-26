@@ -4,7 +4,7 @@ import { COMPANY, telHref } from "@/lib/company";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 export default function Footer() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const footerLinks = [
     { label: t.footer.links.howItWorks, href: "/#how-it-works" },
@@ -20,7 +20,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="mx-auto mt-20 max-w-engine px-5 pb-12 sm:px-8">
+    <footer lang={locale} className="mx-auto mt-20 max-w-engine px-5 pb-12 sm:px-8">
       <div className="border-t border-hairline pt-8">
         <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
           <div className="flex flex-col leading-none">
@@ -32,12 +32,12 @@ export default function Footer() {
             </span>
           </div>
 
-          <nav className="flex flex-wrap gap-x-6 gap-y-2">
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-0">
             {footerLinks.map((link) => (
               <a
                 key={link.href + link.label}
                 href={link.href}
-                className="text-[13px] font-medium text-navy-muted transition-colors hover:text-navy"
+                className="inline-flex min-h-[44px] items-center text-[13px] font-medium text-navy-muted transition-colors hover:text-navy"
               >
                 {link.label}
               </a>
@@ -46,15 +46,36 @@ export default function Footer() {
         </div>
 
         <p className="mt-8 text-[12px] leading-relaxed text-navy-muted">
-          {COMPANY.legalName} · NMLS&nbsp;#{COMPANY.nmls} · CA DRE Corporation License #{COMPANY.dreCorporationLicense} · {COMPANY.mailingAddress}
+          {COMPANY.licenseLine}
           <br />
-          <a href={telHref(COMPANY.phoneOffice)} className="hover:text-navy">
-            {COMPANY.phoneOffice}
+          {COMPANY.mailingAddress}
+          <br />
+          <a
+            href={telHref(COMPANY.phoneOffice)}
+            className="inline-block whitespace-nowrap py-2 hover:text-navy"
+          >
+            {COMPANY.phoneOfficeDisplay}
           </a>{" "}
           ·{" "}
-          <a href={`mailto:${COMPANY.email}`} className="hover:text-navy">
+          <a href={`mailto:${COMPANY.email}`} className="inline-block py-2 hover:text-navy">
             {COMPANY.email}
           </a>
+        </p>
+        <p className="mt-2 flex items-center gap-2 text-[12px] font-medium leading-relaxed text-navy-muted">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          >
+            <path d="M3 11.5 12 4l9 7.5M5.5 10v10h13V10" />
+            <path d="M8.5 13.5h7M8.5 16.5h7" />
+          </svg>
+          Equal Housing Opportunity
         </p>
         <p className="mt-2 text-[12px] leading-relaxed text-navy-muted/80">
           © {new Date().getFullYear()} {t.footer.disclaimer}

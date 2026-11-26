@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { Layers, Send, Gauge, ArrowRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 
-export const metadata: Metadata = {
-  title: "For Brokers — CADeed.com",
-  description:
-    "Qualify and package California private-capital scenarios in minutes, then route them to matched capital sources through GRCRM.",
-};
+export const metadata: Metadata = pageMeta(
+  "/for-brokers",
+  "For Brokers — CADeed.com",
+  "Qualify and package California private-capital scenarios in minutes, then route them to matched capital sources through our CRM.",
+);
 
 const VALUE = [
   {
@@ -17,7 +18,7 @@ const VALUE = [
   {
     icon: Send,
     title: "Package & route",
-    body: "Send a clean, structured scenario into GRCRM for routing to capital sources whose box fits. No spray-and-pray.",
+    body: "Send a clean, structured scenario into our CRM for routing to capital sources whose box fits. No mass lead lists.",
   },
   {
     icon: Layers,

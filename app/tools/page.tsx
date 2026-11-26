@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { Gauge, Percent, Hammer, Building2, Target, ArrowRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 
-export const metadata: Metadata = {
-  title: "Tools & Calculators — CADeed.com",
-  description:
-    "Free California private-capital calculators: CLTV, LTV/LTC, fix & flip profit, DSCR, and a max-loan solver. Estimates only — not a quote.",
-};
+export const metadata: Metadata = pageMeta(
+  "/tools",
+  "Tools & Calculators — CADeed.com",
+  "Free California private-capital calculators: CLTV, LTV/LTC, fix & flip profit, DSCR, and a max-loan solver. Estimates only — not a quote.",
+);
 
 const TOOLS = [
   {
@@ -46,7 +47,7 @@ export default function ToolsHub() {
     <PageShell
       eyebrow="Tools & Calculators"
       title="Run the numbers in seconds."
-      intro="The same deterministic math the engine uses, as standalone calculators. Estimates only — every scenario is subject to review by a licensed professional and/or private capital source."
+      intro="The same formula-based math the engine uses, as standalone calculators. Estimates only — every scenario is subject to review by a licensed professional and/or private capital source."
     >
       <div className="grid gap-4 sm:grid-cols-2">
         {TOOLS.map((t) => (

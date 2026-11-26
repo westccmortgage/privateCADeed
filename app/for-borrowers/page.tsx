@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { MessageSquare, Calculator, ShieldCheck, ArrowRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 
-export const metadata: Metadata = {
-  title: "For Borrowers — CADeed.com",
-  description:
-    "Describe your California real estate deal in plain English. See the likely private capital path in seconds — no application, no obligation.",
-};
+export const metadata: Metadata = pageMeta(
+  "/for-borrowers",
+  "For Borrowers — CADeed.com",
+  "Describe your California real estate deal in plain English. See the likely private capital path in seconds — no application, no obligation.",
+);
 
 const STEPS = [
   {

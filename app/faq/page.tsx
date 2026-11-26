@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { Plus } from "lucide-react";
 import PageShell from "@/components/PageShell";
 
-export const metadata: Metadata = {
-  title: "FAQ — CADeed.com",
-  description:
-    "Answers about CADeed.com — the California Deal Intake Terminal: how it works, what it does for borrowers, brokers, and capital sources, and how it handles compliance and your data.",
-};
+export const metadata: Metadata = pageMeta(
+  "/faq",
+  "FAQ — CADeed.com",
+  "Answers about CADeed.com — the California Deal Intake Terminal: how it works, what it does for borrowers, brokers, and capital sources, and how it handles compliance and your data.",
+);
 
 interface Group {
   title: string;
@@ -19,7 +20,7 @@ const GROUPS: Group[] = [
     items: [
       [
         "What is CADeed.com?",
-        "A California deal intake terminal for private capital. You describe a real estate financing scenario in plain English; the engine extracts the facts, calculates the structure (LTV, CLTV, LTC, ARV, equity), maps the likely capital path, asks the next best question, and — with your consent — routes a structured scenario for licensed review.",
+        "A California deal review tool for private capital. You describe a real estate financing scenario in plain English; our review system extracts the facts, calculates the structure (LTV, CLTV, LTC, ARV, equity), maps the likely capital path, asks the next best question, and — with your consent — routes a structured scenario for licensed review.",
       ],
       [
         "Is this a loan approval?",
@@ -27,7 +28,7 @@ const GROUPS: Group[] = [
       ],
       [
         "Does the AI decide the numbers?",
-        "No. The AI only understands your language and extracts facts. All math is computed by deterministic code, so the numbers are reproducible and never invented. Implausible inputs are caught rather than turned into an absurd result.",
+        "No. The AI only understands your language and extracts facts. All math is computed by fixed formulas, so the numbers are reproducible and never invented. Implausible inputs are caught rather than turned into an absurd result.",
       ],
       [
         "How much does it cost to use?",
@@ -44,7 +45,7 @@ const GROUPS: Group[] = [
       ],
       [
         "What happens after I submit a scenario?",
-        "With your consent, the structured scenario is sent to GRCRM, where it is reviewed and routed to private capital sources whose lending box fits. A licensed professional follows up. CADeed never emails lenders directly.",
+        "With your consent, the structured scenario is sent to our CRM, where it is reviewed and routed to private capital sources whose lending box fits. A licensed professional follows up. CADeed never emails lenders directly.",
       ],
       [
         "Do you handle owner-occupied loans?",
@@ -61,11 +62,11 @@ const GROUPS: Group[] = [
     items: [
       [
         "I'm a broker — how does this help me?",
-        "Drop a client's deal in plain English and get instant CLTV, leverage, the likely capital path, and the exact missing items before you pick up the phone — then send a clean, structured scenario into GRCRM for routing to capital sources whose box fits.",
+        "Drop a client's deal in plain English and get instant CLTV, leverage, the likely capital path, and the exact missing items before you pick up the phone — then send a clean, structured scenario into our CRM for routing to capital sources whose box fits.",
       ],
       [
         "I'm a capital source — how do I receive deals?",
-        "Submit your lending box on the For Capital Sources page — states, lien positions, max LTV/CLTV, loan range, property types, programs, and overlays. When a California scenario matches, GRCRM routes it to you, structured and consent-backed.",
+        "Submit your lending box on the For Capital Sources page — states, lien positions, max LTV/CLTV, loan range, property types, programs, and overlays. When a California scenario matches, our team routes it to you, structured and consent-backed.",
       ],
       [
         "Will I be spammed with leads?",
@@ -85,12 +86,12 @@ const GROUPS: Group[] = [
         "No. We do not sell your personal information. See the Privacy Policy on our Legal & Privacy page for full detail, including your California (CCPA/CPRA) rights.",
       ],
       [
-        "What AI does CADeed use?",
-        "Language understanding is powered by Anthropic Claude, used only to read your description and extract facts. It does not compute the financial figures — that is deterministic TypeScript.",
+        "What technology reads my description?",
+        "An AI language service reads your description and extracts the facts. It does not compute the financial figures — those come from fixed, auditable formulas.",
       ],
       [
-        "Do you lend in other states?",
-        "CADeed focuses on California real estate scenarios.",
+        "Do you work with properties outside California?",
+        "CADeed is built around California real estate scenarios, and our private lending reaches many states across the U.S. If your property is outside California, send us the details or call (310) 654-1577 and we will tell you what is possible.",
       ],
     ],
   },

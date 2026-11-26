@@ -2,12 +2,15 @@
 // Update here and it propagates across the site (footer, company, legal, CTAs).
 
 export const COMPANY = {
-  legalName: "West Coast Capital Mortgage Inc.",
+  legalName: "West Coast Capital Mortgage",
   shortName: "West Coast Capital Mortgage",
   nmls: "2817729",
   dreCorporationLicense: "02440065",
   phoneOffice: "310-654-1577", // Office / loan-officer questions
   phoneDirect: "310-686-5053", // Anatoliy direct
+  phoneOfficeDisplay: "(310) 654-1577",
+  phoneDirectDisplay: "(310) 686-5053",
+  licenseLine: "West Coast Capital Mortgage · NMLS #2817729 · CA DRE #02440065",
   email: "westccmortgage@gmail.com",
   mailingAddress: "150 E Olive Ave, Unit 112, Burbank, CA 91502",
 } as const;

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Scale } from "lucide-react";
 import { parseNum } from "@/lib/format";
 import { COMPLIANCE_NOTE } from "@/lib/types";
+import Field from "@/components/FormField";
 
 export interface CalcField {
   key: string;
@@ -31,7 +32,7 @@ const TONE: Record<NonNullable<CalcOutput["tone"]>, string> = {
 };
 
 const inputClass =
-  "w-full rounded-xl border border-hairline bg-white/80 py-2.5 pl-7 pr-3 text-[15px] text-navy outline-none transition-colors placeholder:text-navy-muted/50 focus:border-navy/30";
+  "w-full rounded-xl border border-hairline bg-white/80 py-2.5 pl-7 pr-3 text-[16px] text-navy outline-none transition-colors placeholder:text-navy-muted/60 focus:border-navy/30";
 
 export default function Calculator({
   fields,
@@ -56,26 +57,28 @@ export default function Calculator({
       <div className="glass-card rounded-card p-6 shadow-soft sm:p-7">
         <div className="space-y-4">
           {fields.map((f) => (
-            <div key={f.key}>
-              <label className="mb-1.5 block text-[12.5px] font-semibold uppercase tracking-wide text-navy-muted">
-                {f.label}
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-navy-muted/70">
-                  {f.adorn ?? "#"}
-                </span>
-                <input
-                  inputMode="decimal"
-                  placeholder={f.placeholder}
-                  value={vals[f.key] ?? ""}
-                  onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-              {f.hint && (
-                <p className="mt-1 text-[12px] text-navy-muted/80">{f.hint}</p>
+            <Field key={f.key} label={f.label} hint={f.hint}>
+              {(c) => (
+                <div className="relative">
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-navy-muted/70"
+                  >
+                    {f.adorn ?? "#"}
+                  </span>
+                  <input
+                    {...c}
+                    name={f.key}
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder={f.placeholder}
+                    value={vals[f.key] ?? ""}
+                    onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
               )}
-            </div>
+            </Field>
           ))}
         </div>
       </div>

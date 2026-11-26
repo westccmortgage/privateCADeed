@@ -215,6 +215,9 @@ export async function sendLeadToGRCRM(lead: LeadInput): Promise<GRCRMResult> {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CADeed-Source": "CADeed.com" },
       body,
+      // a redirect would turn the POST into a GET health check: count it as not delivered
+      redirect: "manual",
+      signal: AbortSignal.timeout(8000),
     });
     return res.ok
       ? { configured: true, sent: true, status: res.status, message: "Lead sent to GRCRM." }
@@ -222,7 +225,7 @@ export async function sendLeadToGRCRM(lead: LeadInput): Promise<GRCRMResult> {
           configured: true,
           sent: false,
           status: res.status,
-          message: "Lead saved; GRCRM will be retried.",
+          message: "GRCRM did not accept the lead.",
         };
   } catch (err) {
     console.error("[grcrm] lead webhook error:", err);

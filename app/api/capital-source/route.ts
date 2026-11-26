@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deliveryResponse } from "@/lib/lead-delivery";
 import { buildCapitalSourcePayload, sendLeadToGRCRM } from "@/lib/grcrm-client";
 import { sendNotificationEmail } from "@/lib/notify";
 import type { CapitalSourceProfile } from "@/lib/types";
@@ -89,16 +90,14 @@ export async function POST(request: Request) {
     summary,
   );
 
-  return NextResponse.json(
+  return deliveryResponse(
+    "capital-source",
+    { forwarded: result.sent, emailed: emailResult.sent },
     {
-      ok: true,
       profileId: payload.profileId,
       configured: result.configured,
-      forwarded: result.sent,
-      emailed: emailResult.sent,
       message:
-        "Thanks — your lending box was received. We'll be in touch about matching California scenarios.",
+        "Thanks — your lending box was received. We'll be in touch about matching scenarios.",
     },
-    { status: 200 },
   );
 }

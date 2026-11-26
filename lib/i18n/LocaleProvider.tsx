@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
@@ -25,6 +26,11 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+// Pages whose body copy is actually translated. Every other page body is
+// English, so <html lang> must stay "en" there even if the visitor picked ru/es
+// (the header/footer carry their own lang attribute).
+export const TRANSLATED_PATHS = ["/", "/solutions"];
+
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
 
@@ -41,10 +47,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLocaleState(next);
   }, []);
 
-  // Keep <html lang> in sync for accessibility and SEO.
+  // Keep <html lang> equal to the language actually rendered in the page body.
+  const pathname = usePathname();
   useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+    const normalized = (pathname || "/").replace(/\/+$/, "") || "/";
+    document.documentElement.lang = TRANSLATED_PATHS.includes(normalized) ? locale : "en";
+  }, [locale, pathname]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deliveryResponse } from "@/lib/lead-delivery";
 import {
   buildScenarioPayload,
   formatScenarioSummary,
@@ -115,15 +116,9 @@ export async function POST(request: Request) {
     "Scenario received — a licensed mortgage professional will review it and reach out. " +
     "This is not a loan approval or commitment to lend.";
 
-  return NextResponse.json(
-    {
-      ok: true,
-      scenarioId: payload.scenarioId,
-      configured: result.configured,
-      forwarded: result.sent,
-      emailed: emailResult.sent,
-      message: userMessage,
-    },
-    { status: 200 },
+  return deliveryResponse(
+    "save-scenario",
+    { forwarded: result.sent, emailed: emailResult.sent },
+    { scenarioId: payload.scenarioId, configured: result.configured, message: userMessage },
   );
 }

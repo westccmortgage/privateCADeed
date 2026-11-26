@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import PageShell from "@/components/PageShell";
 import { COMPLIANCE_NOTE } from "@/lib/types";
 import { CONSENT_TEXT } from "@/lib/compliance-rules";
 import { COMPANY, telHref } from "@/lib/company";
 
-export const metadata: Metadata = {
-  title: "Legal, Disclosures & Privacy — CADeed.com",
-  description:
-    "Disclosures, Terms of Use, Privacy Policy, California (CCPA/CPRA) privacy rights, and communications consent for CADeed.com / West Coast Capital Mortgage Inc.",
-};
+export const metadata: Metadata = pageMeta(
+  "/legal",
+  "Legal, Disclosures & Privacy — CADeed.com",
+  "Disclosures, Terms of Use, Privacy Policy, California (CCPA/CPRA) privacy rights, and communications consent for CADeed.com / West Coast Capital Mortgage.",
+);
 
 const EFFECTIVE = "June 30, 2026";
 
@@ -37,7 +38,7 @@ const SECTIONS: Section[] = [
       `Preliminary only. Any scenario, figure, leverage metric (such as LTV or CLTV), capital path, or estimate produced by the Services is a preliminary modeling output generated from the information you provide. It is not a pre-qualification, pre-approval, approval, rate quote, rate lock, or commitment to lend, and it creates no obligation for us or any capital source to extend credit.`,
       `Subject to review. Actual availability, terms, pricing, and eligibility depend on a complete review of the property, borrower, collateral, documentation, occupancy, purpose, title, and applicable law, and on underwriting by a licensed mortgage professional and/or private capital source.`,
       `Estimates may be incomplete or inaccurate. Calculators and engine outputs are general illustrations based on the inputs you provide, which may be incomplete or incorrect. Nothing on the Site is financial, legal, accounting, or tax advice. Do not rely on any output to make a financial decision.`,
-      `Licensing. Private capital and mortgage financing are arranged through licensed professionals where required. You can verify our license on the NMLS Consumer Access website (nmlsconsumeraccess.org) using NMLS #${COMPANY.nmls}.`,
+      `Licensing. ${COMPANY.licenseLine}. Private capital and mortgage financing are arranged through licensed professionals where required. You can verify our license on the NMLS Consumer Access website (nmlsconsumeraccess.org) using NMLS #${COMPANY.nmls}.`,
       `Equal opportunity. We conduct business in accordance with the Equal Credit Opportunity Act (ECOA) and the Fair Housing Act. We do not discriminate on the basis of race, color, religion, national origin, sex, marital status, age (provided the applicant has the capacity to contract), because all or part of an applicant's income derives from a public assistance program, or because of the good-faith exercise of any right under the Consumer Credit Protection Act.`,
       `Business-purpose vs. consumer. Many private-capital scenarios are intended for business or investment purposes. Owner-occupied or consumer-purpose financing is subject to additional consumer-protection laws, must be reviewed by a licensed mortgage professional, and may not be available from all capital sources.`,
     ],
@@ -59,7 +60,7 @@ const SECTIONS: Section[] = [
         ],
       },
       `No warranty. THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, AND NON-INFRINGEMENT. We do not warrant that any output is accurate, complete, or current, or that the Services will be uninterrupted, secure, or error-free.`,
-      `Third-party services. We rely on third-party providers to operate the Services, including AI language processing (Anthropic), meeting scheduling (Calendly), email delivery (Resend), and client/lead routing (GRCRM). Features powered by these providers may also be subject to their own terms and privacy practices.`,
+      `Third-party services. We rely on third-party providers to operate the Services, including AI language processing (Anthropic), meeting scheduling (Calendly), email delivery (Resend), client/lead routing (GRCRM), and web analytics (Cloudflare Web Analytics). Features powered by these providers may also be subject to their own terms and privacy practices.`,
       `Intellectual property. The Site, its content and design, and the CADeed name and marks are owned by ${COMPANY.legalName} or its licensors and are protected by applicable intellectual-property laws.`,
       `Limitation of liability. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ${COMPANY.legalName.toUpperCase()} AND ITS OWNERS, OFFICERS, EMPLOYEES, AND AGENTS WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOST PROFITS, DATA, OR GOODWILL, ARISING FROM OR RELATED TO YOUR USE OF THE SERVICES. OUR TOTAL LIABILITY FOR ANY CLAIM WILL NOT EXCEED ONE HUNDRED U.S. DOLLARS ($100).`,
       `Indemnification. You agree to indemnify and hold us harmless from any claim, loss, or expense (including reasonable attorneys' fees) arising out of your misuse of the Services or your violation of these terms or applicable law.`,
@@ -76,15 +77,15 @@ const SECTIONS: Section[] = [
       {
         list: [
           "Information you provide — deal details (such as property location, value, existing debt, requested loan amount, lien position, purpose, and occupancy), and your name, email, phone, role, and any message you submit.",
-          "Information collected automatically — basic device and usage data such as IP address, browser type, and pages viewed, through standard web server logs and any analytics we enable.",
-          "Cookies — we use strictly necessary cookies to operate the Site; if analytics are enabled, related cookies may also be used.",
+          "Information collected automatically — basic device and usage data such as IP address, browser type, and pages viewed, through standard web server logs and Cloudflare Web Analytics, which counts visits without cookies.",
+          "Cookies — we use strictly necessary cookies to operate the Site. Cloudflare Web Analytics counts visits without cookies.",
         ],
       },
       `How we use information:`,
       {
         list: [
           "To operate, maintain, and improve the Services and generate your preliminary scenario;",
-          "With your explicit consent, to share your structured scenario with a licensed professional and selected private capital sources for financing review via GRCRM;",
+          "With your explicit consent, to share your structured scenario with a licensed professional and selected private capital sources for financing review via our CRM;",
           "To respond to your inquiries and schedule deal reviews;",
           "To detect, prevent, and address fraud, abuse, and security issues, and to comply with legal obligations.",
         ],
@@ -92,7 +93,7 @@ const SECTIONS: Section[] = [
       `How we share information:`,
       {
         list: [
-          "Service providers — AI processing (Anthropic), scheduling (Calendly), email delivery (Resend), and CRM/routing (GRCRM), under agreements that limit their use of your information to providing services to us.",
+          "Service providers — AI processing (Anthropic), scheduling (Calendly), email delivery (Resend), CRM/routing (GRCRM), and web analytics (Cloudflare Web Analytics, which counts visits without cookies), under agreements that limit their use of your information to providing services to us.",
           "Capital sources and licensed professionals — only after you give explicit consent on the Site.",
           "Legal and safety — when required by law, regulation, or legal process, or to protect rights, property, or safety.",
           "We do not sell your personal information.",
@@ -171,7 +172,7 @@ export default function Legal() {
     >
       {/* Table of contents */}
       <nav className="glass-card mb-8 rounded-card p-5 shadow-soft sm:p-6">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
+        <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-navy-muted">
           On this page
         </p>
         <ol className="grid gap-1.5 sm:grid-cols-2">
@@ -213,7 +214,7 @@ export default function Legal() {
           <h2 className="text-[18px] font-semibold tracking-tight text-navy">8. Contact</h2>
           <div className="mt-3 space-y-2 text-[14.5px] leading-relaxed text-navy-muted">
             <p>
-              {COMPANY.legalName} · NMLS&nbsp;#{COMPANY.nmls}
+              {COMPANY.licenseLine}
               <br />
               {COMPANY.mailingAddress}
             </p>
@@ -221,16 +222,16 @@ export default function Legal() {
               Office:{" "}
               <a
                 href={telHref(COMPANY.phoneOffice)}
-                className="font-medium text-navy underline-offset-2 hover:underline"
+                className="whitespace-nowrap font-medium text-navy underline-offset-2 hover:underline"
               >
-                {COMPANY.phoneOffice}
+                {COMPANY.phoneOfficeDisplay}
               </a>{" "}
               · Direct:{" "}
               <a
                 href={telHref(COMPANY.phoneDirect)}
-                className="font-medium text-navy underline-offset-2 hover:underline"
+                className="whitespace-nowrap font-medium text-navy underline-offset-2 hover:underline"
               >
-                {COMPANY.phoneDirect}
+                {COMPANY.phoneDirectDisplay}
               </a>
             </p>
             <p>
